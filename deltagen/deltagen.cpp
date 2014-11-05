@@ -176,32 +176,38 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 	printf("generating delta operations...\n");
 	
+	int a_op_cnt = 0;
+	int b_op_cnt = 0;
+	int d_op_cnt = 0;
+	
 	for (auto i = after_tree_state.begin(); i != after_tree_state.end(); ++i) {
 		auto &after_info = i->second;
 
 		if (after_info.deleted) {
-			printf("d %s\n", i->first.c_str());
+			d_op_cnt++;
+			toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
 			continue;
 		}
 
 		if (before_tree_state.count(i->first)) {
 			auto &before_info = before_tree_state[i->first];
 			if (before_info.type != after_info.type) {
-				printf("{\n  d %s (%d)\n", i->first.c_str(), before_info.type);
-				printf("  a %s (%d)\n}\n", i->first.c_str(), after_info.type);
+				d_op_cnt++; a_op_cnt++;
 				toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
 				toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
 			}
 			else {
-				printf("b %s\n", i->first.c_str());
+				b_op_cnt++;
 				toc.ops.push_back(delta_op(delta_op_type::PATCH, i->first));
 			}
 		}
 		else {
-			printf("a %s\n", i->first.c_str());
+			a_op_cnt++;
 			toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
 		}
 	}
+
+	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, b_op_cnt);
 
 	std::ofstream ofs(patch_path.native().c_str(), std::ios::binary);
 	cereal::PortableBinaryOutputArchive archive(ofs);
