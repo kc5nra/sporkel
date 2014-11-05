@@ -3,6 +3,7 @@
 #include "base64.h"
 #include "deltagen.h"
 #include "deltacommon.h"
+#include "bscommon.h"
 
 struct delta_info make_delta_info(recursive_directory_iterator &i)
 {

@@ -28,17 +28,17 @@
 __FBSDID("$FreeBSD: src/usr.bin/bsdiff/bspatch/bspatch.c,v 1.1 2005/08/06 01:59:06 cperciva Exp $");
 #endif
 
-#include "bscommon.h"
 
 #include <sys/types.h>
 
-#include "bspatch.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
 #include <io.h>
 #include <stdint.h>
+
+#include "bscommon.h"
 
 /* Compatibility layer for reading either the old BSDIFF40 or the new BSDIFN40
    patch formats: */

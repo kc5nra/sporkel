@@ -20,4 +20,7 @@
     exit(eval); } while (0)
 #endif /* HAVE_ERR */
 
+int bsdiff(int argc, const char **argv);
+int bspatch(int argc, char * argv []);
+
 #endif
