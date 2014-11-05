@@ -1,4 +1,5 @@
 #include <sodium.h>
+#include <fstream>
 
 #include "base64.h"
 #include "deltacommon.h"

@@ -2,6 +2,7 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <fstream>
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/portable_binary.hpp>
@@ -52,8 +53,8 @@ int apply(char *tree, char *patch_file);
 int show_help(int result, std::string &bn) {
 	if (result == 1) {
 		printf("usage: %s <command> <args>\n\n", bn.c_str());
-		printf("    create <before_tree> <after_tree> <patch_file>\n", bn.c_str());
-		printf("    apply <tree> <patch_file>\n", bn.c_str());
+		printf("    create <before_tree> <after_tree> <patch_file>\n");
+		printf("    apply <tree> <patch_file>\n");
 	}
 	return result;
 }
