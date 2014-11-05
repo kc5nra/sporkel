@@ -35,8 +35,13 @@ __FBSDID("$FreeBSD: src/usr.bin/bsdiff/bspatch/bspatch.c,v 1.1 2005/08/06 01:59:
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
-#include <io.h>
 #include <stdint.h>
+
+#ifdef WIN32
+# include <io.h>
+#else
+# include <sys/io.h>
+#endif
 
 #include "bscommon.h"
 
@@ -91,7 +96,7 @@ static off_t offtin(uint8_t *buf)
 	return y;
 }
 
-int bspatch(int argc,char * argv[])
+int bspatch(int argc, const char *argv[])
 {
 	FILE * f, * cpf, * dpf, * epf;
 	stream_t cstream, dstream, estream;

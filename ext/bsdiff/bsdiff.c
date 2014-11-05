@@ -37,7 +37,12 @@ __FBSDID("$FreeBSD: src/usr.bin/bsdiff/bsdiff/bsdiff.c, v 1.1 2005/08/06 01:59:0
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <io.h>
+
+#ifdef WIN32
+# include <io.h>
+#else
+# include <sys/io.h>
+#endif
 
 #define MIN(x, y) (((x)<(y)) ? (x) : (y))
 
@@ -248,9 +253,7 @@ static void offtout(off_t x, uint8_t *buf)
         buf[7] |= 0x80;
 }
 
-int bsdiff(int argc, char *argv[]); // Added by AMM: suppresses a warning about the following not having a prototype.
-
-int bsdiff(int argc, char *argv[])
+int bsdiff(int argc, const char *argv[])
 {
     int fd;
     uint8_t *old, *new;         /* contents of old, new files */
