@@ -9,40 +9,40 @@ using namespace boost::filesystem;
 
 
 struct delta_info {
-    std::string hash;
-    file_type type;
-    unsigned long long size;
-    bool deleted;
+	std::string hash;
+	file_type type;
+	unsigned long long size;
+	bool deleted;
 };
 
 enum delta_op_type {
-    DELETE,
-    ADD,
-    PATCH
+	DELETE,
+	ADD,
+	PATCH
 };
 
 struct delta_op {
-    enum delta_op_type type;
-    std::string path;
+	enum delta_op_type type;
+	std::string path;
 
-    delta_op() {}
-    delta_op(enum delta_op_type type, const std::string &path) : type(type), path(path) {}
-    
-    template<class Archive>
-    void serialize(Archive & archive)
-    {
-        archive(type, path); // serialize things by passing them to the archive
-    }
+	delta_op() {}
+	delta_op(enum delta_op_type type, const std::string &path) : type(type), path(path) {}
+	
+	template<class Archive>
+	void serialize(Archive & archive)
+	{
+		archive(type, path); // serialize things by passing them to the archive
+	}
 };
 
 struct delta_op_toc {
-    std::vector<struct delta_op> ops;
+	std::vector<struct delta_op> ops;
 
-    template<class Archive>
-    void serialize(Archive & archive)
-    {
-        archive(ops); // serialize things by passing them to the archive
-    }
+	template<class Archive>
+	void serialize(Archive & archive)
+	{
+		archive(ops); // serialize things by passing them to the archive
+	}
 };
 
 

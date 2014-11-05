@@ -1,6 +1,6 @@
 #include <map>
 #include <vector>
-#include <ostream>
+#include <iostream>
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/portable_binary.hpp>
@@ -16,25 +16,25 @@
 
 struct delta_info make_delta_info(recursive_directory_iterator &i)
 {
-    struct delta_info di;
-    di.deleted = false;
-    di.type = i->status().type();
-    di.size = 0;
-    if (is_regular_file(i->status()))
+	struct delta_info di;
+	di.deleted = false;
+	di.type = i->status().type();
+	di.size = 0;
+	if (is_regular_file(i->status()))
 	di.size = file_size(i->path());
-    di.hash = hash_entry(i);
+	di.hash = hash_entry(i);
 
-    return di;
+	return di;
 }
 
 bool delta_info_equals(struct delta_info &l, struct delta_info& r) {
-    if (l.hash.compare(r.hash) != 0) {
-        return false;
-    }
-    if (l.type != r.type) {
-        return false;
-    }
-    return l.size == r.size;
+	if (l.hash.compare(r.hash) != 0) {
+		return false;
+	}
+	if (l.type != r.type) {
+		return false;
+	}
+	return l.size == r.size;
 }
 
 bool has_option(char **begin, char **end, const std::string &option)
@@ -111,110 +111,110 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	}
 
 	if (!is_directory(after_path)) {
-        fprintf(stderr, "error: <after_tree> option '%s' is not a directory\n", after_path.generic_string().c_str());
+		fprintf(stderr, "error: <after_tree> option '%s' is not a directory\n", after_path.generic_string().c_str());
 		return 1;
 	}
 
 	if (exists(patch_path)) {
-        fprintf(stderr, "error: <patch_file> '%s' already exists\n", patch_path.generic_string().c_str());
+		fprintf(stderr, "error: <patch_file> '%s' already exists\n", patch_path.generic_string().c_str());
 		return 2;
 	}
 
-    std::map<std::string, struct delta_info> before_tree_state;
-    std::map<std::string, struct delta_info> after_tree_state;
-    
-    struct delta_info deleted;
-    deleted.deleted = true;
+	std::map<std::string, struct delta_info> before_tree_state;
+	std::map<std::string, struct delta_info> after_tree_state;
+	
+	struct delta_info deleted;
+	deleted.deleted = true;
 
-    unsigned char hash[crypto_generichash_BYTES];
-    
-    crypto_generichash_state state;
-    crypto_generichash_init(&state, NULL, 0, sizeof(hash));
+	unsigned char hash[crypto_generichash_BYTES];
+	
+	crypto_generichash_state state;
+	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
 
-    printf("processing %s...\n", before_path.generic_string().c_str());
-    process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
-        auto before_info = make_delta_info(i);
-        auto key(path.generic_string());
-        hash_delta_info(key, before_info, state);
-        before_tree_state[key] = before_info;
-        after_tree_state[key] = deleted;
-    });
+	printf("processing %s...\n", before_path.generic_string().c_str());
+	process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
+		auto before_info = make_delta_info(i);
+		auto key(path.generic_string());
+		hash_delta_info(key, before_info, state);
+		before_tree_state[key] = before_info;
+		after_tree_state[key] = deleted;
+	});
 
-    crypto_generichash_final(&state, hash, sizeof(hash));
-    std::string before_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
+	crypto_generichash_final(&state, hash, sizeof(hash));
+	std::string before_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
 
-    crypto_generichash_init(&state, NULL, 0, sizeof(hash));
+	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
 
-    printf("processing %s...\n", after_path.generic_string().c_str());
-    process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
-        auto after_info = make_delta_info(i);
-        auto key(path.generic_string());
-        hash_delta_info(key, after_info, state);
-        if (before_tree_state.count(key)) {
-            auto &before_info = before_tree_state[key];
-            if (delta_info_equals(before_info, after_info)) {
-                after_tree_state.erase(key);
-                return;
-            }
-        }
-        
-        after_tree_state[key] = after_info;
-    });
+	printf("processing %s...\n", after_path.generic_string().c_str());
+	process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
+		auto after_info = make_delta_info(i);
+		auto key(path.generic_string());
+		hash_delta_info(key, after_info, state);
+		if (before_tree_state.count(key)) {
+			auto &before_info = before_tree_state[key];
+			if (delta_info_equals(before_info, after_info)) {
+				after_tree_state.erase(key);
+				return;
+			}
+		}
+		
+		after_tree_state[key] = after_info;
+	});
 
-    crypto_generichash_final(&state, hash, sizeof(hash));
-    std::string after_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
+	crypto_generichash_final(&state, hash, sizeof(hash));
+	std::string after_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
 
-    printf("before tree: '%s'\n", before_path.generic_string().c_str());
-    printf("    hash: '%s'\n", before_tree_hash.c_str());
-    printf("    file count: %d\n", before_tree_state.size());
-    printf("after tree: '%s'\n", after_path.generic_string().c_str());
-    printf("    hash: '%s'\n", after_tree_hash.c_str());
-    printf("    mod cnt: %d\n", after_tree_state.size());
+	printf("before tree: '%s'\n", before_path.generic_string().c_str());
+	printf("    hash: '%s'\n", before_tree_hash.c_str());
+	std::cout << "    file count: " << before_tree_state.size() << std::endl;
+	printf("after tree: '%s'\n", after_path.generic_string().c_str());
+	printf("    hash: '%s'\n", after_tree_hash.c_str());
+	std::cout << "    mod cnt: " << after_tree_state.size();
 
-    printf("generating delta operations...\n");
-    
-    struct delta_op_toc toc;
+	printf("generating delta operations...\n");
+	
+	struct delta_op_toc toc;
 
-    for (auto i = after_tree_state.begin(); i != after_tree_state.end(); ++i) {
-        auto &after_info = i->second;
+	for (auto i = after_tree_state.begin(); i != after_tree_state.end(); ++i) {
+		auto &after_info = i->second;
 
-        if (after_info.deleted) {
-            printf("d %s\n", i->first.c_str());
-            continue;
-        }
+		if (after_info.deleted) {
+			printf("d %s\n", i->first.c_str());
+			continue;
+		}
 
-        if (before_tree_state.count(i->first)) {
-            auto &before_info = before_tree_state[i->first];
-            if (before_info.type != after_info.type) {
-                printf("{\n  d %s (%d)\n", i->first.c_str(), before_info.type);
-                printf("  a %s (%d)\n}\n", i->first.c_str(), after_info.type);
-                toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
-                toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
-            }
-            else {
-                printf("b %s\n", i->first.c_str());
-                toc.ops.push_back(delta_op(delta_op_type::PATCH, i->first));
-            }
-        }
-        else {
-            printf("a %s\n", i->first.c_str());
-            toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
-        }
-    }
+		if (before_tree_state.count(i->first)) {
+			auto &before_info = before_tree_state[i->first];
+			if (before_info.type != after_info.type) {
+				printf("{\n  d %s (%d)\n", i->first.c_str(), before_info.type);
+				printf("  a %s (%d)\n}\n", i->first.c_str(), after_info.type);
+				toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
+				toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
+			}
+			else {
+				printf("b %s\n", i->first.c_str());
+				toc.ops.push_back(delta_op(delta_op_type::PATCH, i->first));
+			}
+		}
+		else {
+			printf("a %s\n", i->first.c_str());
+			toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
+		}
+	}
 
-    std::ofstream ofs(patch_path.native().c_str(), std::ios::binary);
-    cereal::PortableBinaryOutputArchive archive(ofs);
-    archive(toc);
-    ofs.close();
+	std::ofstream ofs(patch_path.native().c_str(), std::ios::binary);
+	cereal::PortableBinaryOutputArchive archive(ofs);
+	archive(toc);
+	ofs.close();
 
-    struct delta_op_toc toc_in;
+	struct delta_op_toc toc_in;
 
-    std::ifstream ifs(patch_path.native().c_str(), std::ios::binary);
-    cereal::PortableBinaryInputArchive iarchive(ifs);
-    iarchive(toc);
-    ifs.close();
+	std::ifstream ifs(patch_path.native().c_str(), std::ios::binary);
+	cereal::PortableBinaryInputArchive iarchive(ifs);
+	iarchive(toc);
+	ifs.close();
 
-    return 0;
+	return 0;
 }
 
 int apply(char *tree, char *patch_file)

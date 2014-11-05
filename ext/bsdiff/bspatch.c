@@ -158,19 +158,19 @@ int bspatch(int argc, const char *argv[])
 		err(1, "fopen(%s)", argv[3]);
 	if (fseek(cpf, 32, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
-		    (long long)32);
+			(long long)32);
 	cstream = io->open(cpf);
 	if ((dpf = fopen(argv[3], "r")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
 	if (fseek(dpf, 32 + bzctrllen, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
-		    (long long)(32 + bzctrllen));
+			(long long)(32 + bzctrllen));
 	dstream = io->open(dpf);
 	if ((epf = fopen(argv[3], "r")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
 	if (fseek(epf, 32 + bzctrllen + bzdatalen, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
-		    (long long)(32 + bzctrllen + bzdatalen));
+			(long long)(32 + bzctrllen + bzdatalen));
 	estream = io->open(epf);
 
 	if(((fd=_open(argv[1],O_RDONLY,0))<0) ||
