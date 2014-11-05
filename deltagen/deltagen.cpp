@@ -85,6 +85,17 @@ int main(int argc, char **argv)
 	return show_help(result, bn);
 }
 
+std::string get_tree_hash(std::map<std::string, struct delta_info> tree) {
+	unsigned char hash[crypto_generichash_BYTES];
+	crypto_generichash_state state;
+	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
+	for (auto i = tree.begin(); i != tree.end(); ++i) {
+		hash_delta_info(i->first, i->second, state);
+	}
+	crypto_generichash_final(&state, hash, sizeof(hash));
+	return base64_encode((const unsigned char *) &hash[0], sizeof(hash));
+}
+
 int create(char *before_tree, char *after_tree, char *patch_file)
 {
 	if (!before_tree) {
@@ -122,35 +133,25 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	}
 
 	std::map<std::string, struct delta_info> before_tree_state;
+	std::map<std::string, struct delta_info> after_tree_state_unmod;
 	std::map<std::string, struct delta_info> after_tree_state;
 	
 	struct delta_info deleted;
 	deleted.deleted = true;
 
-	unsigned char hash[crypto_generichash_BYTES];
-	
-	crypto_generichash_state state;
-	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
-
 	printf("processing %s...\n", before_path.generic_string().c_str());
 	process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
 		auto before_info = make_delta_info(i);
 		auto key(path.generic_string());
-		hash_delta_info(key, before_info, state);
 		before_tree_state[key] = before_info;
 		after_tree_state[key] = deleted;
 	});
-
-	crypto_generichash_final(&state, hash, sizeof(hash));
-	std::string before_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
-
-	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
 
 	printf("processing %s...\n", after_path.generic_string().c_str());
 	process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
 		auto after_info = make_delta_info(i);
 		auto key(path.generic_string());
-		hash_delta_info(key, after_info, state);
+		after_tree_state_unmod[key] = after_info;
 		if (before_tree_state.count(key)) {
 			auto &before_info = before_tree_state[key];
 			if (delta_info_equals(before_info, after_info)) {
@@ -162,9 +163,9 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		after_tree_state[key] = after_info;
 	});
 
-	crypto_generichash_final(&state, hash, sizeof(hash));
-	std::string after_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
-
+	std::string before_tree_hash(get_tree_hash(before_tree_state));
+	std::string after_tree_hash(get_tree_hash(after_tree_state_unmod));
+	
 	printf("before tree: '%s'\n", before_path.generic_string().c_str());
 	printf("    hash: '%s'\n", before_tree_hash.c_str());
 	std::cout << "    file count: " << before_tree_state.size() << std::endl;

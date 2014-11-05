@@ -7,7 +7,6 @@
 
 using namespace boost::filesystem;
 
-
 struct delta_info {
 	std::string hash;
 	file_type type;
@@ -49,7 +48,7 @@ struct delta_op_toc {
 void process_tree(path &p, std::function<void(path &p, recursive_directory_iterator &i)> f);
 bool delta_info_equals(struct delta_info &l, struct delta_info& r);
 
-void hash_delta_info(std::string &path, struct delta_info &di, crypto_generichash_state &state);
+void hash_delta_info(const std::string &path, struct delta_info &di, crypto_generichash_state &state);
 std::string hash_entry(recursive_directory_iterator &i);
 void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state);
 
