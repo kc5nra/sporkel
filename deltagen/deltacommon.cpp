@@ -46,10 +46,10 @@ void process_tree(path &p, std::function<void(path &path, recursive_directory_it
 
 void hash_delta_info(std::string &p, struct delta_info &di, crypto_generichash_state &state)
 {
-	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), sizeof(di.hash.c_str()));
+	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), strlen(p.c_str()));
 	crypto_generichash_update(&state, (const unsigned char *) &di.type, sizeof(decltype(di.type)));
 	crypto_generichash_update(&state, (const unsigned char *) &di.size, sizeof(decltype(di.size)));
-	crypto_generichash_update(&state, (const unsigned char *) di.hash.c_str(), sizeof(di.hash.c_str()));
+	crypto_generichash_update(&state, (const unsigned char *) di.hash.c_str(), strlen(di.hash.c_str()));
 }
 
 void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state)
@@ -67,7 +67,7 @@ void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state
 		size_t chunk_cnt = size / chunk_buffer_size;
 		size_t last_chunk_size = size % chunk_buffer_size;
 
-		std::ifstream file(path.generic_string(), std::ifstream::binary);
+		std::ifstream file(path.native(), std::ifstream::binary);
 
 		if (last_chunk_size != 0)
 			++chunk_cnt;
