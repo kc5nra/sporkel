@@ -2,9 +2,12 @@ project(sodium)
 
 add_definitions(
 	-DSODIUM_STATIC
-	-DSODIUM_EXPORT=
-	-D_CONSOLE
-	/wd4244)
+	-DSODIUM_EXPORT=)
+
+if (WIN32)
+	add_definitions(
+		/wd4244)
+endif(WIN32)
 
 include_directories(
 	libsodium_override/
