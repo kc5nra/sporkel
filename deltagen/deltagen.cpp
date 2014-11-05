@@ -9,7 +9,9 @@ struct delta_info make_delta_info(recursive_directory_iterator &i)
     struct delta_info di;
 
     di.type = i->status().type();
-    di.size = file_size(i->path());
+    di.size = 0;
+    if (is_regular_file(i->status()))
+	di.size = file_size(i->path());
     di.hash = hash_entry(i);
 
     return di;

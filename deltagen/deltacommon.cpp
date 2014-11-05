@@ -42,7 +42,9 @@ void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state
 {
     
     auto &path = i->path();
-    size_t size = (size_t)file_size(i->path());
+    size_t size = 0;
+    if (is_regular_file(i->status()))
+	    size = (size_t)file_size(i->path());
 
     if (is_regular(i->status()) || is_symlink(i->status())) {
 
