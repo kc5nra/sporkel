@@ -1,10 +1,19 @@
-#include <algorithm>
 #include <map>
-#include <fstream>
-#include <sodium.h>
 
-#include "deltagen.h"
 #include "base64.h"
+#include "deltagen.h"
+#include "deltacommon.h"
+
+struct delta_info make_delta_info(sys::recursive_directory_iterator &i)
+{
+    struct delta_info di;
+
+    di.type = i->status().type();
+    di.size = sys::file_size(i->path());
+    di.hash = hash_entry(i);
+
+    return di;
+}
 
 bool delta_info_equals(struct delta_info &l, struct delta_info& r) {
     if (l.hash.compare(r.hash) != 0) {
@@ -13,61 +22,7 @@ bool delta_info_equals(struct delta_info &l, struct delta_info& r) {
     if (l.type != r.type) {
         return false;
     }
-    return l.size != r.size;
-}
-
-struct delta_info make_delta_info(sys::recursive_directory_iterator &i)
-{
-    struct delta_info di;
-    
-    di.type = i->status().type();
-    di.size = sys::file_size(i->path());
-    di.hash = hash_file(i->path(), di.size);
-    
-    return di;   
-}
-
-std::string hash_file(const sys::path &path, const size_t size)
-{
-    crypto_generichash_state state;
-    unsigned char hash[crypto_generichash_BYTES];
-    crypto_generichash_init(&state, NULL, 0, sizeof(hash));
-
-    char chunk_buffer[16 * 1024];
-    size_t chunk_buffer_size = sizeof(chunk_buffer);
-    size_t chunk_cnt = size / chunk_buffer_size;
-    size_t last_chunk_size = size % chunk_buffer_size;
-    
-    std::ifstream file(path.string(), std::ifstream::binary);
-    
-    if (last_chunk_size != 0)
-        ++chunk_cnt;
-    else
-        last_chunk_size = chunk_buffer_size;
-
-    for (size_t chunk = 0; chunk < chunk_cnt; ++chunk) {
-        size_t chunk_size = chunk_buffer_size;
-        if (chunk == chunk_cnt - 1)
-            chunk_size = last_chunk_size;
-
-        file.read(&chunk_buffer[0], chunk_size);
-        crypto_generichash_update(&state, (unsigned char *)&chunk_buffer[0], chunk_size);
-    }
-    crypto_generichash_final(&state, hash, sizeof(hash));
-    
-    return std::string(base64_encode(&hash[0], sizeof(hash)));
-}
-
-sys::path make_relative(const sys::path &parent_path, const sys::path &child_path)
-{
-    std::string parent(parent_path.string());
-    std::string child(child_path.string());
-    size_t parent_len = parent.length();
-
-    if (child.length() >= parent_len && child.substr(0, parent_len) == parent)
-        return sys::path(child.substr(parent_len));
-
-    return child_path;
+    return l.size == r.size;
 }
 
 bool has_option(char **begin, char **end, const std::string &option)
@@ -154,18 +109,57 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	}
 
     std::map<std::string, struct delta_info> before_tree_state;
-    sys::recursive_directory_iterator end;
-    for (sys::recursive_directory_iterator i(before_path); i != end; ++i) {
-        sys::file_type type = i->status().type();
-        if (!sys::is_directory(i->status()) && !sys::is_regular_file(i->status()) && !sys::is_symlink(i->status())) {
-            continue;
+    std::map<std::string, struct delta_info> after_tree_state;
+    
+    struct delta_info deleted;
+    deleted.deleted = true;
+
+    unsigned char hash[crypto_generichash_BYTES];
+    
+    crypto_generichash_state state;
+    crypto_generichash_init(&state, NULL, 0, sizeof(hash));
+    
+    printf("processing %s...\n", before_path.string().c_str());
+    process_tree(before_path, [&](sys::path &path, sys::recursive_directory_iterator &i) {
+        auto before_info = make_delta_info(i);
+        auto key(path.string());
+        hash_delta_info(key, before_info, state);
+        before_tree_state[key] = before_info;
+        after_tree_state[key] = deleted;
+    });
+
+    crypto_generichash_final(&state, hash, sizeof(hash));
+    std::string before_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
+
+    crypto_generichash_init(&state, NULL, 0, sizeof(hash));
+
+    printf("processing %s...\n", after_path.string().c_str());
+    process_tree(after_path, [&](sys::path &path, sys::recursive_directory_iterator &i) {
+        auto after_info = make_delta_info(i);
+        auto key(path.string());
+        hash_delta_info(key, after_info, state);
+        if (before_tree_state.count(key)) {
+            auto &before_info = before_tree_state[key];
+            if (delta_info_equals(before_info, after_info)) {
+                after_tree_state.erase(key);
+                return;
+            }
         }
+        
+        after_tree_state[key] = after_info;
+    });
 
-        sys::path rel_path(make_relative(before_path, i->path()));
-        before_tree_state[rel_path.string()] = make_delta_info(i);
-    }
+    crypto_generichash_final(&state, hash, sizeof(hash));
+    std::string after_tree_hash(base64_encode((const unsigned char *) &hash[0], sizeof(hash)));
 
-	return 0;
+    printf("before tree: '%s'\n", before_path.string().c_str());
+    printf("    hash: '%s'\n", before_tree_hash.c_str());
+    printf("    file count: %d\n", before_tree_state.size());
+    printf("after tree: '%s'\n", after_path.string().c_str());
+    printf("    hash: '%s'\n", after_tree_hash.c_str());
+    printf("    mod cnt: %d\n", after_tree_state.size());
+
+    return 0;
 }
 
 int apply(char *tree, char *patch_file)

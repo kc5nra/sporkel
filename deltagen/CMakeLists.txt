@@ -9,10 +9,12 @@ include_directories(
 
 set(deltagen_SOURCES
 	deltagen.cpp
+	deltacommon.cpp
 	base64.cpp)
 
 set(deltagen_HEADERS
 	deltagen.h
+	deltacommon.h
 	base64.h)
 
 add_executable(deltagen
