@@ -101,3 +101,9 @@ std::string hash_entry(recursive_directory_iterator &i)
 
     return std::string(base64_encode(&hash[0], sizeof(hash)));
 }
+
+path get_temp_directory() {
+    
+    path p(unique_path());
+    return temp_directory_path() / p;
+}

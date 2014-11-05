@@ -5,9 +5,10 @@ add_definitions(
 	-DBOOST_ALL_NO_LIB)
 
 include_directories(
+	${BOOST_INCLUDE_DIRS}
 	${BSDIFF_INCLUDE_DIRS}
-	${SODIUM_INCLUDE_DIRS}
-	${BOOST_INCLUDE_DIRS})
+	${CEREAL_INCLUDE_DIRS}
+	${SODIUM_INCLUDE_DIRS})
 
 set(deltagen_SOURCES
 	deltagen.cpp

@@ -4,7 +4,8 @@ project(3rdparty-dependencies)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
-include(sodium.cmake)
 include(bsdiff.cmake)
+include(cereal.cmake)
+include(sodium.cmake)
 
 add_subdirectory(boost)

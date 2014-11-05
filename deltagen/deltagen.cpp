@@ -1,14 +1,23 @@
 #include <map>
+#include <vector>
+#include <ostream>
+
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/portable_binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
 
 #include "base64.h"
 #include "deltagen.h"
 #include "deltacommon.h"
 #include "bscommon.h"
 
+
+
 struct delta_info make_delta_info(recursive_directory_iterator &i)
 {
     struct delta_info di;
-
+    di.deleted = false;
     di.type = i->status().type();
     di.size = 0;
     if (is_regular_file(i->status()))
@@ -121,7 +130,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
     
     crypto_generichash_state state;
     crypto_generichash_init(&state, NULL, 0, sizeof(hash));
-    
+
     printf("processing %s...\n", before_path.generic_string().c_str());
     process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
         auto before_info = make_delta_info(i);
@@ -161,6 +170,49 @@ int create(char *before_tree, char *after_tree, char *patch_file)
     printf("after tree: '%s'\n", after_path.generic_string().c_str());
     printf("    hash: '%s'\n", after_tree_hash.c_str());
     printf("    mod cnt: %d\n", after_tree_state.size());
+
+    printf("generating delta operations...\n");
+    
+    struct delta_op_toc toc;
+
+    for (auto i = after_tree_state.begin(); i != after_tree_state.end(); ++i) {
+        auto &after_info = i->second;
+
+        if (after_info.deleted) {
+            printf("d %s\n", i->first.c_str());
+            continue;
+        }
+
+        if (before_tree_state.count(i->first)) {
+            auto &before_info = before_tree_state[i->first];
+            if (before_info.type != after_info.type) {
+                printf("{\n  d %s (%d)\n", i->first.c_str(), before_info.type);
+                printf("  a %s (%d)\n}\n", i->first.c_str(), after_info.type);
+                toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
+                toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
+            }
+            else {
+                printf("b %s\n", i->first.c_str());
+                toc.ops.push_back(delta_op(delta_op_type::PATCH, i->first));
+            }
+        }
+        else {
+            printf("a %s\n", i->first.c_str());
+            toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
+        }
+    }
+
+    std::ofstream ofs(patch_path.native().c_str(), std::ios::binary);
+    cereal::PortableBinaryOutputArchive archive(ofs);
+    archive(toc);
+    ofs.close();
+
+    struct delta_op_toc toc_in;
+
+    std::ifstream ifs(patch_path.native().c_str(), std::ios::binary);
+    cereal::PortableBinaryInputArchive iarchive(ifs);
+    iarchive(toc);
+    ifs.close();
 
     return 0;
 }

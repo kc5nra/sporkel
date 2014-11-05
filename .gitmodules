@@ -55,3 +55,6 @@
 [submodule "ext/boost/range"]
 	path = ext/boost/range
 	url = https://github.com/boostorg/range.git
+[submodule "ext/cereal"]
+	path = ext/cereal
+	url = https://github.com/USCiLab/cereal.git
