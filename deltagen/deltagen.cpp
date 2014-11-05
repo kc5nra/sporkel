@@ -14,17 +14,16 @@
 #include "deltacommon.h"
 #include "bscommon.h"
 
-
-
 struct delta_info make_delta_info(recursive_directory_iterator &i)
 {
 	struct delta_info di;
-	di.deleted = false;
+	
 	di.type = i->status().type();
 	di.size = 0;
 	if (is_regular_file(i->status()))
-	di.size = file_size(i->path());
+		di.size = file_size(i->path());
 	di.hash = hash_entry(i);
+	di.deleted = false;
 
 	return di;
 }
@@ -171,7 +170,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	std::cout << "    file count: " << before_tree_state.size() << std::endl;
 	printf("after tree: '%s'\n", after_path.generic_string().c_str());
 	printf("    hash: '%s'\n", after_tree_hash.c_str());
-	std::cout << "    mod cnt: " << after_tree_state.size();
+	std::cout << "    mod cnt: " << after_tree_state.size() << std::endl;
 
 	printf("generating delta operations...\n");
 	
