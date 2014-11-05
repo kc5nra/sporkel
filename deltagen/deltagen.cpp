@@ -163,20 +163,19 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		after_tree_state[key] = after_info;
 	});
 
-	std::string before_tree_hash(get_tree_hash(before_tree_state));
-	std::string after_tree_hash(get_tree_hash(after_tree_state_unmod));
+	struct delta_op_toc toc;
+	toc.before_hash = get_tree_hash(before_tree_state);
+	toc.after_hash = get_tree_hash(after_tree_state);
 	
 	printf("before tree: '%s'\n", before_path.generic_string().c_str());
-	printf("    hash: '%s'\n", before_tree_hash.c_str());
+	printf("    hash: '%s'\n", toc.before_hash.c_str());
 	std::cout << "    file count: " << before_tree_state.size() << std::endl;
 	printf("after tree: '%s'\n", after_path.generic_string().c_str());
-	printf("    hash: '%s'\n", after_tree_hash.c_str());
+	printf("    hash: '%s'\n", toc.after_hash.c_str());
 	std::cout << "    mod cnt: " << after_tree_state.size() << std::endl;
 
 	printf("generating delta operations...\n");
 	
-	struct delta_op_toc toc;
-
 	for (auto i = after_tree_state.begin(); i != after_tree_state.end(); ++i) {
 		auto &after_info = i->second;
 
@@ -208,13 +207,6 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	cereal::PortableBinaryOutputArchive archive(ofs);
 	archive(toc);
 	ofs.close();
-
-	struct delta_op_toc toc_in;
-
-	std::ifstream ifs(patch_path.native().c_str(), std::ios::binary);
-	cereal::PortableBinaryInputArchive iarchive(ifs);
-	iarchive(toc);
-	ifs.close();
 
 	return 0;
 }

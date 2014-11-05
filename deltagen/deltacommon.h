@@ -36,14 +36,15 @@ struct delta_op {
 
 struct delta_op_toc {
 	std::vector<struct delta_op> ops;
+	std::string before_hash;
+	std::string after_hash;
 
 	template<class Archive>
-	void serialize(Archive & archive)
+	void serialize(Archive &ar)
 	{
-		archive(ops); // serialize things by passing them to the archive
+		ar(ops, before_hash, after_hash);
 	}
 };
-
 
 void process_tree(path &p, std::function<void(path &p, recursive_directory_iterator &i)> f);
 bool delta_info_equals(struct delta_info &l, struct delta_info& r);
