@@ -3,16 +3,29 @@
 #include "base64.h"
 #include "deltacommon.h"
 
-path make_path_relative(const path &parent_path, const path &child_path)
+path& path_append(path &_this, path::iterator begin, path::iterator end)
 {
-    std::string parent(parent_path.string());
-    std::string child(child_path.string());
-    size_t parent_len = parent.length();
+    for (; begin != end; ++begin)
+        _this /= *begin;
+    return _this;
+}
 
-    if (child.length() >= parent_len && child.substr(0, parent_len) == parent)
-        return path(child.substr(parent_len));
+path make_path_relative(path a_From, path a_To)
+{
+    a_From = absolute(a_From); a_To = absolute(a_To);
+    path ret;
+    path::const_iterator itrFrom(a_From.begin()), itrTo(a_To.begin());
+    for (path::const_iterator toEnd(a_To.end()), fromEnd(a_From.end()); 
+        itrFrom != fromEnd && itrTo != toEnd && *itrFrom == *itrTo; 
+        ++itrFrom, ++itrTo);
 
-    return child_path;
+    for (path::const_iterator fromEnd(a_From.end()); itrFrom != fromEnd; ++itrFrom)
+    {
+        if ((*itrFrom) != ".")
+            ret /= "..";
+    }
+
+    return path_append(ret, itrTo, a_To.end());
 }
 
 void process_tree(path &p, std::function<void(path &path, recursive_directory_iterator &i)> f)
@@ -53,7 +66,7 @@ void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state
         size_t chunk_cnt = size / chunk_buffer_size;
         size_t last_chunk_size = size % chunk_buffer_size;
 
-        std::ifstream file(path.string(), std::ifstream::binary);
+        std::ifstream file(path.generic_string(), std::ifstream::binary);
 
         if (last_chunk_size != 0)
             ++chunk_cnt;
