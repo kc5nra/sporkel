@@ -1,11 +1,13 @@
 project(deltagen)
 
 add_definitions(
-	-DSODIUM_STATIC)
+	-DSODIUM_STATIC
+	-DBOOST_ALL_NO_LIB)
 
 include_directories(
 	${BSDIFF_INCLUDE_DIRS}
-	${SODIUM_INCLUDE_DIRS})
+	${SODIUM_INCLUDE_DIRS}
+	${BOOST_INCLUDE_DIRS})
 
 set(deltagen_SOURCES
 	deltagen.cpp
@@ -23,4 +25,5 @@ add_executable(deltagen
 
 target_link_libraries(deltagen
 	bsdiff
-	sodium)
+	sodium
+	${BOOST_LIBRARIES})

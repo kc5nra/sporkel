@@ -6,3 +6,5 @@ SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(sodium.cmake)
 include(bsdiff.cmake)
+
+add_subdirectory(boost)

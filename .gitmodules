@@ -1,3 +1,57 @@
 [submodule "ext/libsodium"]
 	path = ext/libsodium
 	url = https://github.com/jedisct1/libsodium.git
+[submodule "ext/boost/filesystem"]
+	path = ext/boost/filesystem
+	url = https://github.com/boostorg/filesystem.git
+[submodule "ext/boost/system"]
+	path = ext/boost/system
+	url = https://github.com/boostorg/system.git
+[submodule "ext/boost/config"]
+	path = ext/boost/config
+	url = https://github.com/boostorg/config.git
+[submodule "ext/boost/detail"]
+	path = ext/boost/detail
+	url = https://github.com/boostorg/detail.git
+[submodule "ext/boost/predef"]
+	path = ext/boost/predef
+	url = https://github.com/boostorg/predef.git
+[submodule "ext/boost/utility"]
+	path = ext/boost/utility
+	url = https://github.com/boostorg/utility.git
+[submodule "ext/boost/core"]
+	path = ext/boost/core
+	url = https://github.com/boostorg/core.git
+[submodule "ext/boost/type_traits"]
+	path = ext/boost/type_traits
+	url = https://github.com/boostorg/type_traits.git
+[submodule "ext/boost/mpl"]
+	path = ext/boost/mpl
+	url = https://github.com/boostorg/mpl.git
+[submodule "ext/boost/preprocessor"]
+	path = ext/boost/preprocessor
+	url = https://github.com/boostorg/preprocessor.git
+[submodule "ext/boost/assert"]
+	path = ext/boost/assert
+	url = https://github.com/boostorg/assert.git
+[submodule "ext/boost/iterator"]
+	path = ext/boost/iterator
+	url = https://github.com/boostorg/iterator.git
+[submodule "ext/boost/smart_ptr"]
+	path = ext/boost/smart_ptr
+	url = https://github.com/boostorg/smart_ptr.git
+[submodule "ext/boost/static_assert"]
+	path = ext/boost/static_assert
+	url = https://github.com/boostorg/static_assert.git
+[submodule "ext/boost/throw_exception"]
+	path = ext/boost/throw_exception
+	url = https://github.com/boostorg/throw_exception.git
+[submodule "ext/boost/io"]
+	path = ext/boost/io
+	url = https://github.com/boostorg/io.git
+[submodule "ext/boost/functional"]
+	path = ext/boost/functional
+	url = https://github.com/boostorg/functional.git
+[submodule "ext/boost/range"]
+	path = ext/boost/range
+	url = https://github.com/boostorg/range.git

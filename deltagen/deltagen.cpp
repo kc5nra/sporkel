@@ -4,12 +4,12 @@
 #include "deltagen.h"
 #include "deltacommon.h"
 
-struct delta_info make_delta_info(sys::recursive_directory_iterator &i)
+struct delta_info make_delta_info(recursive_directory_iterator &i)
 {
     struct delta_info di;
 
     di.type = i->status().type();
-    di.size = sys::file_size(i->path());
+    di.size = file_size(i->path());
     di.hash = hash_entry(i);
 
     return di;
@@ -48,7 +48,7 @@ int show_help(int result, std::string &bn) {
 int main(int argc, char **argv)
 {
 	
-	std::string bn = sys::basename(sys::path(argv[0]));
+	std::string bn = basename(path(argv[0]));
 
 	if (HAS_OPTION("-h") || HAS_OPTION("--help")) {
 		return show_help(1, bn);
@@ -89,21 +89,21 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		return 1;
 	}
 
-	sys::path before_path(before_tree);
-	sys::path after_path(after_tree);
-	sys::path patch_path(patch_file);
+	path before_path(before_tree);
+	path after_path(after_tree);
+	path patch_path(patch_file);
 	
-	if (!sys::is_directory(before_path)) {
+	if (!is_directory(before_path)) {
 		fprintf(stderr, "error: <before_tree> '%s' is not a directory\n", before_path.string().c_str());
 		return 1;
 	}
 
-	if (!sys::is_directory(after_path)) {
+	if (!is_directory(after_path)) {
 		fprintf(stderr, "error: <after_tree> option '%s' is not a directory\n", after_path.string().c_str());
 		return 1;
 	}
 
-	if (sys::exists(patch_path)) {
+	if (exists(patch_path)) {
 		fprintf(stderr, "error: <patch_file> '%s' already exists\n", patch_path.string().c_str());
 		return 2;
 	}
@@ -120,7 +120,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
     crypto_generichash_init(&state, NULL, 0, sizeof(hash));
     
     printf("processing %s...\n", before_path.string().c_str());
-    process_tree(before_path, [&](sys::path &path, sys::recursive_directory_iterator &i) {
+    process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
         auto before_info = make_delta_info(i);
         auto key(path.string());
         hash_delta_info(key, before_info, state);
@@ -134,7 +134,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
     crypto_generichash_init(&state, NULL, 0, sizeof(hash));
 
     printf("processing %s...\n", after_path.string().c_str());
-    process_tree(after_path, [&](sys::path &path, sys::recursive_directory_iterator &i) {
+    process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
         auto after_info = make_delta_info(i);
         auto key(path.string());
         hash_delta_info(key, after_info, state);
