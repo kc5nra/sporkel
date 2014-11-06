@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD: src/usr.bin/bsdiff/bspatch/bspatch.c,v 1.1 2005/08/06 01:59:
 #ifdef WIN32
 # include <io.h>
 #else
-# include <sys/io.h>
+# include <sys/uio.h>
 #endif
 
 #include "bscommon.h"

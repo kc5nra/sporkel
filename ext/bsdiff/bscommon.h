@@ -1,9 +1,7 @@
 #ifndef bscommon_H
 #define bscommon_H
 
-#ifdef HAVE_ERR
-# include <err.h>
-#else
+#ifdef WIN32
 # include <errno.h>
 # include <string.h>
 # define warnx(...) do {\
@@ -18,7 +16,9 @@
 # define err(eval, ...) do {\
 	warn(__VA_ARGS__);\
 	exit(eval); } while (0)
-#endif /* HAVE_ERR */
+#else
+# include <err.h>
+#endif
 
 int bsdiff(int argc, const char *argv[]);
 int bspatch(int argc, const char *argv[]);
