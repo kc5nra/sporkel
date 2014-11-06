@@ -12,7 +12,7 @@
 #include "base64.h"
 #include "deltagen.h"
 #include "deltacommon.h"
-#include "bscommon.h"
+#include <bscommon.h>
 
 delta_info make_delta_info(recursive_directory_iterator &i)
 {
@@ -88,6 +88,12 @@ std::string get_tree_hash(const std::map<std::string, delta_info> &tree) {
 	}
 	crypto_generichash_final(&state, hash, sizeof(hash));
 	return base64_encode((const unsigned char *) &hash[0], sizeof(hash));
+}
+
+void get_file_contents(path &p, size_t size, std::vector<uint8_t> &buf) {
+	std::ifstream f(p.native(), std::ios::binary);
+	buf.resize(size);
+	f.read(reinterpret_cast<char*>(buf.data()), size);
 }
 
 int create(char *before_tree, char *after_tree, char *patch_file)
@@ -181,26 +187,26 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 		if (after_info.deleted) {
 			d_op_cnt++;
-			toc.ops.emplace_back(delta_op_type::DELETE, i.first);
+			toc.ops.emplace_back(delta_op_type::DELETE, i.first, file_type::status_unknown);
 			continue;
 		}
 
 		auto res = before_tree_state.find(i.first);
 		if (res == end(before_tree_state)) {
 			a_op_cnt++;
-			toc.ops.emplace_back(delta_op_type::ADD, i.first);
+			toc.ops.emplace_back(delta_op_type::ADD, i.first, after_info.type);
 			continue;
 		}
 
 		auto &before_info = res->second;
 		if (before_info.type != after_info.type) {
 			d_op_cnt++; a_op_cnt++;
-			toc.ops.emplace_back(delta_op_type::DELETE, i.first);
-			toc.ops.emplace_back(delta_op_type::ADD, i.first);
+			toc.ops.emplace_back(delta_op_type::DELETE, i.first, before_info.type);
+			toc.ops.emplace_back(delta_op_type::ADD, i.first, after_info.type);
 		}
 		else {
 			b_op_cnt++;
-			toc.ops.emplace_back(delta_op_type::PATCH, i.first);
+			toc.ops.emplace_back(delta_op_type::PATCH, i.first, before_info.type);
 		}
 	}
 
@@ -208,7 +214,46 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 	std::ofstream ofs(patch_path.native().c_str(), std::ios::binary);
 	cereal::PortableBinaryOutputArchive archive(ofs);
+
 	archive(toc);
+
+	std::vector<uint8_t> delta;
+
+	for (auto &i : toc.ops) {
+		if (i.ftype != file_type::regular_file)
+			continue;
+		switch (i.type) {
+		case delta_op_type::ADD:
+		{
+			path p(after_path / path(i.path));
+			size_t s = file_size(p);
+			get_file_contents(p, s, delta);
+			archive.saveBinary(delta.data(), s);
+			break;
+		}
+		case delta_op_type::PATCH:
+		{
+			path p1(before_path / path(i.path));
+			path p2(after_path / path(i.path));
+			size_t s1 = file_size(p1);
+			size_t s2 = file_size(p2);
+			std::vector<uint8_t> p1_data;
+			std::vector<uint8_t> p2_data;
+			get_file_contents(p1, s1, p1_data);
+			get_file_contents(p2, s2, p2_data);
+			auto max_size = bsdiff_patchsize_max(s1, s2);
+			delta.resize(max_size + 1);
+			std::cout << "diffing " << i.path << " (" << s1 << "b -> " << s2 << "b)...";
+			int actual_size = bsdiff(p1_data.data(), s1, p2_data.data(), s2, delta.data(), max_size);
+			archive.saveBinary(delta.data(), actual_size);
+			std::cout << " done. (" << actual_size << "b patch)" << std::endl;
+			break;
+		}
+		case delta_op_type::DELETE:
+			break;
+		}
+	}
+	
 	ofs.close();
 
 	return 0;

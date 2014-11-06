@@ -9,6 +9,8 @@ set(bsdiff_SOURCES
 	bsdiff/bsdiff.c
 	bsdiff/bspatch.c)
 
+SET_SOURCE_FILES_PROPERTIES(${bsdiff_SOURCES} PROPERTIES LANGUAGE C)
+
 add_library(bsdiff
 	${bsdiff_SOURCES})
 

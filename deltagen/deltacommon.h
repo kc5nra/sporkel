@@ -31,9 +31,11 @@ struct delta_op
 {
 	delta_op_type type;
 	std::string path;
+	file_type ftype;
 
 	delta_op() = default;
-	delta_op(delta_op_type type, const std::string &path) : type(type), path(path) {}
+	delta_op(delta_op_type type, const std::string &path, file_type ftype) 
+		: type(type), path(path), ftype(ftype) {}
 	
 private:
 	friend class cereal::access;
@@ -42,7 +44,7 @@ private:
 	{
 		switch (version) {
 		case 1:
-			ar(type, path);
+			ar(type, path, ftype);
 			break;
 		default:
 			throw cereal::Exception("unknown version");

@@ -1,9 +1,10 @@
 /*-
+ * Copyright 2012-2013 Austin Seipp
  * Copyright 2003-2005 Colin Percival
  * All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted providing that the following conditions 
+ * modification, are permitted providing that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
@@ -28,215 +29,137 @@
 __FBSDID("$FreeBSD: src/usr.bin/bsdiff/bspatch/bspatch.c,v 1.1 2005/08/06 01:59:06 cperciva Exp $");
 #endif
 
-
-#include <sys/types.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <fcntl.h>
-#include <stdint.h>
-
-#ifdef WIN32
-# include <io.h>
-#else
-# include <sys/uio.h>
-#endif
+#include <sys/types.h>
 
 #include "bscommon.h"
 
-/* Compatibility layer for reading either the old BSDIFF40 or the new BSDIFN40
-   patch formats: */
+/*
+  Patch file format:
+  0        8       BSDIFF_CONFIG_MAGIC (see minibsdiff-config.h)
+  8        8       X
+  16       8       Y
+  24       8       sizeof(newfile)
+  32       X       control block
+  32+X     Y       diff block
+  32+X+Y   ???     extra block
+  with control block a set of triples (x,y,z) meaning "add x bytes
+  from oldfile to x bytes from the diff block; copy y bytes from the
+  extra block; seek forwards in oldfile by z bytes".
+*/
 
-typedef void* stream_t;
-
-typedef struct
+static off_t
+offtin(u_char *buf)
 {
-	stream_t (*open)(FILE*);
-	void (*close)(stream_t);
-	size_t (*read)(stream_t, void*, size_t);
-} io_funcs_t;
+  off_t y;
 
+  y=buf[7]&0x7F;
+  y=y*256;y+=buf[6];
+  y=y*256;y+=buf[5];
+  y=y*256;y+=buf[4];
+  y=y*256;y+=buf[3];
+  y=y*256;y+=buf[2];
+  y=y*256;y+=buf[1];
+  y=y*256;y+=buf[0];
 
-static stream_t BSDIFN40_open(FILE *f)
-{
-	return f;
+  if(buf[7]&0x80) y=-y;
+
+  return y;
 }
 
-static void BSDIFN40_close(stream_t s)
+bool
+bspatch_valid_header(u_char* patch, ssize_t patchsz)
 {
+  ssize_t newsize, ctrllen, datalen;
+
+  if (patchsz < 32) return false;
+
+  /* Make sure magic and header fields are valid */
+  if(memcmp(patch, BSDIFF_CONFIG_MAGIC, 8) != 0) return false;
+
+  ctrllen=offtin(patch+8);
+  datalen=offtin(patch+16);
+  newsize=offtin(patch+24);
+  if((ctrllen<0) || (datalen<0) || (newsize<0))
+    return false;
+
+  return true;
 }
 
-static size_t BSDIFN40_read(stream_t s, void *buf, size_t len)
+ssize_t
+bspatch_newsize(u_char* patch, ssize_t patchsz)
 {
-	return fread(buf, 1, len, (FILE*)s);
+  if (!bspatch_valid_header(patch, patchsz)) return -1;
+  return offtin(patch+24);
 }
 
-static io_funcs_t BSDIFN40_funcs = {
-	BSDIFN40_open,
-	BSDIFN40_close,
-	BSDIFN40_read
-};
-
-static off_t offtin(uint8_t *buf)
+int
+bspatch(u_char* oldp,  ssize_t oldsz,
+        u_char* patch, ssize_t patchsz,
+        u_char* newp,  ssize_t newsz)
 {
-	off_t y;
+  ssize_t newsize,ctrllen,datalen;
+  u_char *ctrlblock, *diffblock, *extrablock;
+  off_t oldpos,newpos;
+  off_t ctrl[3];
+  off_t i;
 
-	y=buf[7]&0x7F;
-	y=y*256;y+=buf[6];
-	y=y*256;y+=buf[5];
-	y=y*256;y+=buf[4];
-	y=y*256;y+=buf[3];
-	y=y*256;y+=buf[2];
-	y=y*256;y+=buf[1];
-	y=y*256;y+=buf[0];
+  /* Sanity checks */
+  if (oldp == NULL || patch == NULL || newp == NULL) return -1;
+  if (oldsz < 0    || patchsz < 0   || newsz < 0)    return -1;
+  if (!bspatch_valid_header(patch, patchsz)) return -2;
 
-	if(buf[7]&0x80) y=-y;
+  /* Read lengths from patch header */
+  ctrllen=offtin(patch+8);
+  datalen=offtin(patch+16);
+  newsize=offtin(patch+24);
+  if (newsize > newsz) return -1;
 
-	return y;
-}
+  /* Get pointers into the header metadata */
+  ctrlblock  = patch+32;
+  diffblock  = patch+32+ctrllen;
+  extrablock = patch+32+ctrllen+datalen;
 
-int bspatch(int argc, const char *argv[])
-{
-	FILE * f, * cpf, * dpf, * epf;
-	stream_t cstream, dstream, estream;
-	int fd;
-	size_t oldsize,newsize;
-	size_t bzctrllen,bzdatalen;
-	uint8_t header[32],buf[8];
-	uint8_t *old, *new;
-	off_t oldpos,newpos;
-	off_t ctrl[3];
-	off_t lenread;
-	off_t i;
-	io_funcs_t * io;
+  /* Apply patch */
+  oldpos=0;newpos=0;
+  while(newpos<newsize) {
+    /* Read control block */
+    ctrl[0] = offtin(ctrlblock);
+    ctrl[1] = offtin(ctrlblock+8);
+    ctrl[2] = offtin(ctrlblock+16);
+    ctrlblock += 24;
 
-	if(argc!=4) errx(1,"usage: %s oldfile newfile patchfile\n",argv[0]);
+    /* Sanity check */
+    if(newpos+ctrl[0]>newsize)
+      return -3; /* Corrupt patch */
 
-	/* Open patch file */
-	if ((f = fopen(argv[3], "r")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
+    /* Read diff string */
+    memcpy(newp + newpos, diffblock, ctrl[0]);
+    diffblock += ctrl[0];
 
-	/*
-	File format:
-		0	8	"BSDIFF40" (bzip2) or "BSDIFN40" (raw)
-		8	8	X
-		16	8	Y
-		24	8	sizeof(newfile)
-		32	X	bzip2(control block)
-		32+X	Y	bzip2(diff block)
-		32+X+Y	???	bzip2(extra block)
-	with control block a set of triples (x,y,z) meaning "add x bytes
-	from oldfile to x bytes from the diff block; copy y bytes from the
-	extra block; seek forwards in oldfile by z bytes".
-	*/
+    /* Add old data to diff string */
+    for(i=0;i<ctrl[0];i++)
+      if((oldpos+i>=0) && (oldpos+i<oldsz))
+        newp[newpos+i]+=oldp[oldpos+i];
 
-	/* Read header */
-	if (fread(header, 1, 32, f) < 32) {
-		if (feof(f))
-			errx(1, "Corrupt patch\n");
-		err(1, "fread(%s)", argv[3]);
-	}
+    /* Adjust pointers */
+    newpos+=ctrl[0];
+    oldpos+=ctrl[0];
 
-	/* Check for appropriate magic */
-	if (memcmp(header, "BSDIFN40", 8) == 0)
-		io = &BSDIFN40_funcs;
-	else
-		errx(1, "Corrupt patch\n");
+    /* Sanity check */
+    if(newpos+ctrl[1]>newsize)
+      return -3; /* Corrupt patch */
 
-	/* Read lengths from header */
-	bzctrllen=offtin(header+8);
-	bzdatalen=offtin(header+16);
-	newsize=offtin(header+24);
-	if((bzctrllen<0) || (bzdatalen<0) || (newsize<0))
-		errx(1,"Corrupt patch\n");
+    /* Read extra string */
+    memcpy(newp + newpos, extrablock, ctrl[1]);
+    extrablock += ctrl[1];
 
-	/* Close patch file and re-open it via libbzip2 at the right places */
-	if (fclose(f))
-		err(1, "fclose(%s)", argv[3]);
-	if ((cpf = fopen(argv[3], "r")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
-	if (fseek(cpf, 32, SEEK_SET))
-		err(1, "fseeko(%s, %lld)", argv[3],
-			(long long)32);
-	cstream = io->open(cpf);
-	if ((dpf = fopen(argv[3], "r")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
-	if (fseek(dpf, 32 + bzctrllen, SEEK_SET))
-		err(1, "fseeko(%s, %lld)", argv[3],
-			(long long)(32 + bzctrllen));
-	dstream = io->open(dpf);
-	if ((epf = fopen(argv[3], "r")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
-	if (fseek(epf, 32 + bzctrllen + bzdatalen, SEEK_SET))
-		err(1, "fseeko(%s, %lld)", argv[3],
-			(long long)(32 + bzctrllen + bzdatalen));
-	estream = io->open(epf);
+    /* Adjust pointers */
+    newpos+=ctrl[1];
+    oldpos+=ctrl[2];
+  };
 
-	if(((fd=_open(argv[1],O_RDONLY,0))<0) ||
-		((oldsize=_lseek(fd,0,SEEK_END))==-1) ||
-		((old=malloc(oldsize+1))==NULL) ||
-		(_lseek(fd,0,SEEK_SET)!=0) ||
-		(_read(fd,old,oldsize)!=oldsize) ||
-		(_close(fd)==-1)) err(1,"%s",argv[1]);
-	if((new=malloc(newsize+1))==NULL) err(1,NULL);
-
-	oldpos=0;newpos=0;
-	while(newpos<newsize) {
-		/* Read control data */
-		for(i=0;i<=2;i++) {
-			lenread = io->read(cstream, buf, 8);
-			if (lenread < 8)
-				errx(1, "Corrupt patch\n");
-			ctrl[i]=offtin(buf);
-		};
-
-		/* Sanity-check */
-		if(newpos+ctrl[0]>newsize)
-			errx(1,"Corrupt patch\n");
-
-		/* Read diff string */
-		lenread = io->read(dstream, new + newpos, ctrl[0]);
-		if (lenread < ctrl[0])
-			errx(1, "Corrupt patch\n");
-
-		/* Add old data to diff string */
-		for(i=0;i<ctrl[0];i++)
-			if((oldpos+i>=0) && (oldpos+i<oldsize))
-				new[newpos+i]+=old[oldpos+i];
-
-		/* Adjust pointers */
-		newpos+=ctrl[0];
-		oldpos+=ctrl[0];
-
-		/* Sanity-check */
-		if(newpos+ctrl[1]>newsize)
-			errx(1,"Corrupt patch\n");
-
-		/* Read extra string */
-		lenread = io->read(estream, new + newpos, ctrl[1]);
-		if (lenread < ctrl[1])
-			errx(1, "Corrupt patch\n");
-
-		/* Adjust pointers */
-		newpos+=ctrl[1];
-		oldpos+=ctrl[2];
-	};
-
-	/* Clean up the bzip2 reads */
-	io->close(cstream);
-	io->close(dstream);
-	io->close(estream);
-	if (fclose(cpf) || fclose(dpf) || fclose(epf))
-		err(1, "fclose(%s)", argv[3]);
-
-	/* Write the new file */
-	if(((fd=_open(argv[2],O_CREAT|O_TRUNC|O_WRONLY,0666))<0) ||
-		(_write(fd,new,newsize)!=newsize) || (_close(fd)==-1))
-		err(1,"%s",argv[2]);
-
-	free(new);
-	free(old);
-
-	return 0;
+  return 0;
 }
