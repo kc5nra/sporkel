@@ -212,7 +212,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, b_op_cnt);
 
-	std::ofstream ofs(patch_path.native().c_str(), std::ios::binary);
+	std::ofstream ofs(patch_path.native(), std::ios::binary);
 	cereal::PortableBinaryOutputArchive archive(ofs);
 
 	archive(toc);
