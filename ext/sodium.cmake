@@ -172,7 +172,9 @@ set(sodium_SOURCES
 	libsodium/src/libsodium/sodium/utils.c
 	libsodium/src/libsodium/sodium/version.c)
 
-SET_SOURCE_FILES_PROPERTIES(${sodium_SOURCES} PROPERTIES LANGUAGE CXX)
+if (WIN32)
+    SET_SOURCE_FILES_PROPERTIES(${sodium_SOURCES} PROPERTIES LANGUAGE CXX)
+endif()
 
 add_library(sodium
 	${sodium_SOURCES}
