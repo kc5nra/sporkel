@@ -237,7 +237,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 			path p(after_path / path(i.path));
 			size_t s = file_size(p);
 			get_file_contents(p, s, delta);
-			archive.saveBinary(delta.data(), s);
+			archive(delta);
 			break;
 		}
 		case delta_op_type::PATCH:
@@ -254,7 +254,8 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 			delta.resize(max_size + 1);
 			std::cout << "diffing " << i.path << " (" << s1 << "b -> " << s2 << "b)...";
 			int actual_size = bsdiff(p1_data.data(), s1, p2_data.data(), s2, delta.data(), max_size);
-			archive.saveBinary(delta.data(), actual_size);
+			delta.resize(actual_size);
+			archive(delta);
 			std::cout << " done. (" << actual_size << "b patch)" << std::endl;
 			break;
 		}
