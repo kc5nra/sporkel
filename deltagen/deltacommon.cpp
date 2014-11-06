@@ -44,7 +44,7 @@ void process_tree(path &p, std::function<void(path &path, recursive_directory_it
 	}
 }
 
-void hash_delta_info(const std::string &p, struct delta_info &di, crypto_generichash_state &state)
+void hash_delta_info(const std::string &p, const delta_info &di, crypto_generichash_state &state)
 {
 	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), p.length());
 	crypto_generichash_update(&state, (const unsigned char *) &di.type, sizeof(decltype(di.type)));

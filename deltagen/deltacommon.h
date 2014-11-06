@@ -18,6 +18,8 @@ struct delta_info
 	bool deleted;
 };
 
+bool operator==(const delta_info &a, const delta_info &b);
+
 enum delta_op_type 
 {
 	DELETE,
@@ -27,11 +29,11 @@ enum delta_op_type
 
 struct delta_op 
 {
-	enum delta_op_type type;
+	delta_op_type type;
 	std::string path;
 
-	delta_op() {}
-	delta_op(enum delta_op_type type, const std::string &path) : type(type), path(path) {}
+	delta_op() = default;
+	delta_op(delta_op_type type, const std::string &path) : type(type), path(path) {}
 	
 private:
 	friend class cereal::access;
@@ -51,7 +53,7 @@ CEREAL_CLASS_VERSION(delta_op, 1);
 
 struct delta_op_toc 
 {
-	std::vector<struct delta_op> ops;
+	std::vector<delta_op> ops;
 	std::string before_hash;
 	std::string after_hash;
 
@@ -72,9 +74,8 @@ private:
 CEREAL_CLASS_VERSION(delta_op_toc, 1);
 
 void process_tree(path &p, std::function<void(path &p, recursive_directory_iterator &i)> f);
-bool delta_info_equals(struct delta_info &l, struct delta_info& r);
 
-void hash_delta_info(const std::string &path, struct delta_info &di, crypto_generichash_state &state);
+void hash_delta_info(const std::string &path, const delta_info &di, crypto_generichash_state &state);
 std::string hash_entry(recursive_directory_iterator &i);
 void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state);
 

@@ -14,9 +14,9 @@
 #include "deltacommon.h"
 #include "bscommon.h"
 
-struct delta_info make_delta_info(recursive_directory_iterator &i)
+delta_info make_delta_info(recursive_directory_iterator &i)
 {
-	struct delta_info di;
+	delta_info di;
 	
 	di.type = i->status().type();
 	di.size = 0;
@@ -28,14 +28,8 @@ struct delta_info make_delta_info(recursive_directory_iterator &i)
 	return di;
 }
 
-bool delta_info_equals(struct delta_info &l, struct delta_info& r) {
-	if (l.hash.compare(r.hash) != 0) {
-		return false;
-	}
-	if (l.type != r.type) {
-		return false;
-	}
-	return l.size == r.size;
+bool operator==(const delta_info &l, const delta_info &r) {
+	return l.type == r.type && l.size == r.size && l.hash == r.hash;
 }
 
 bool has_option(char **begin, char **end, const std::string &option)
@@ -85,7 +79,7 @@ int main(int argc, char **argv)
 	return show_help(result, bn);
 }
 
-std::string get_tree_hash(std::map<std::string, struct delta_info> tree) {
+std::string get_tree_hash(std::map<std::string, delta_info> tree) {
 	unsigned char hash[crypto_generichash_BYTES];
 	crypto_generichash_state state;
 	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
@@ -132,11 +126,11 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		return 2;
 	}
 
-	std::map<std::string, struct delta_info> before_tree_state;
-	std::map<std::string, struct delta_info> after_tree_state_unmod;
-	std::map<std::string, struct delta_info> after_tree_state;
-	
-	struct delta_info deleted;
+	std::map<std::string, delta_info> before_tree_state;
+	std::map<std::string, delta_info> after_tree_state_unmod;
+	std::map<std::string, delta_info> after_tree_state;
+
+	delta_info deleted;
 	deleted.deleted = true;
 
 	printf("processing %s...\n", before_path.generic_string().c_str());
@@ -163,7 +157,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		after_tree_state[key] = after_info;
 	});
 
-	struct delta_op_toc toc;
+	delta_op_toc toc;
 	toc.before_hash = get_tree_hash(before_tree_state);
 	toc.after_hash = get_tree_hash(after_tree_state);
 	
