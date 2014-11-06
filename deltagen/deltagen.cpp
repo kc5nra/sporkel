@@ -4,6 +4,9 @@
 #include <iostream>
 #include <fstream>
 
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
+
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/portable_binary.hpp>
 #include <cereal/types/vector.hpp>
@@ -212,8 +215,14 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, b_op_cnt);
 
+	using namespace boost::iostreams;
+
 	std::ofstream ofs(patch_path.native(), std::ios::binary);
-	cereal::PortableBinaryOutputArchive archive(ofs);
+	filtering_ostream filter;
+	filter.push(bzip2_compressor());
+	filter.push(ofs);
+
+	cereal::PortableBinaryOutputArchive archive(filter);
 
 	archive(toc);
 
@@ -253,8 +262,6 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 			break;
 		}
 	}
-	
-	ofs.close();
 
 	return 0;
 }
