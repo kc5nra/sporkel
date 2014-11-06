@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	return show_help(result, bn);
 }
 
-std::string get_tree_hash(std::map<std::string, delta_info> tree) {
+std::string get_tree_hash(const std::map<std::string, delta_info> &tree) {
 	unsigned char hash[crypto_generichash_BYTES];
 	crypto_generichash_state state;
 	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
