@@ -83,8 +83,8 @@ std::string get_tree_hash(std::map<std::string, delta_info> tree) {
 	unsigned char hash[crypto_generichash_BYTES];
 	crypto_generichash_state state;
 	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
-	for (auto i = tree.begin(); i != tree.end(); ++i) {
-		hash_delta_info(i->first, i->second, state);
+	for (auto &i : tree) {
+		hash_delta_info(i.first, i.second, state);
 	}
 	crypto_generichash_final(&state, hash, sizeof(hash));
 	return base64_encode((const unsigned char *) &hash[0], sizeof(hash));
@@ -146,9 +146,10 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		auto after_info = make_delta_info(i);
 		auto key(path.generic_string());
 		after_tree_state_unmod[key] = after_info;
-		if (before_tree_state.count(key)) {
-			auto &before_info = before_tree_state[key];
-			if (delta_info_equals(before_info, after_info)) {
+
+		auto res = before_tree_state.find(key);
+		if (res != end(before_tree_state)) {
+			if (res->second == after_info) {
 				after_tree_state.erase(key);
 				return;
 			}
@@ -174,30 +175,31 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	int b_op_cnt = 0;
 	int d_op_cnt = 0;
 	
-	for (auto i = after_tree_state.begin(); i != after_tree_state.end(); ++i) {
-		auto &after_info = i->second;
+	for (auto &i : after_tree_state) {
+		auto &after_info = i.second;
 
 		if (after_info.deleted) {
 			d_op_cnt++;
-			toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
+			toc.ops.push_back(delta_op(delta_op_type::DELETE, i.first));
 			continue;
 		}
 
-		if (before_tree_state.count(i->first)) {
-			auto &before_info = before_tree_state[i->first];
-			if (before_info.type != after_info.type) {
-				d_op_cnt++; a_op_cnt++;
-				toc.ops.push_back(delta_op(delta_op_type::DELETE, i->first));
-				toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
-			}
-			else {
-				b_op_cnt++;
-				toc.ops.push_back(delta_op(delta_op_type::PATCH, i->first));
-			}
+		auto res = before_tree_state.find(i.first);
+		if (res == end(before_tree_state)) {
+			a_op_cnt++;
+			toc.ops.push_back(delta_op(delta_op_type::ADD, i.first));
+			continue;
+		}
+
+		auto &before_info = res->second;
+		if (before_info.type != after_info.type) {
+			d_op_cnt++; a_op_cnt++;
+			toc.ops.push_back(delta_op(delta_op_type::DELETE, i.first));
+			toc.ops.push_back(delta_op(delta_op_type::ADD, i.first));
 		}
 		else {
-			a_op_cnt++;
-			toc.ops.push_back(delta_op(delta_op_type::ADD, i->first));
+			b_op_cnt++;
+			toc.ops.push_back(delta_op(delta_op_type::PATCH, i.first));
 		}
 	}
 
