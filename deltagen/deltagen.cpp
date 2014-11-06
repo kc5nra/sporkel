@@ -15,7 +15,10 @@
 #include "base64.h"
 #include "deltagen.h"
 #include "deltacommon.h"
+#include "scopeguard.h"
 #include <bscommon.h>
+
+using namespace boost::iostreams;
 
 delta_info make_delta_info(recursive_directory_iterator &i)
 {
@@ -97,6 +100,11 @@ void get_file_contents(path &p, size_t size, std::vector<uint8_t> &buf) {
 	std::ifstream f(p.native(), std::ios::binary);
 	buf.resize(size);
 	f.read(reinterpret_cast<char*>(buf.data()), size);
+}
+
+void set_file_contents(path &p, std::vector<uint8_t> &buf) {
+	std::ofstream f(p.native(), std::ios::binary);
+	f.write((char *)buf.data(), buf.size());
 }
 
 int create(char *before_tree, char *after_tree, char *patch_file)
@@ -215,8 +223,6 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, b_op_cnt);
 
-	using namespace boost::iostreams;
-
 	std::ofstream ofs(patch_path.native(), std::ios::binary);
 	filtering_ostream filter;
 	filter.push(bzip2_compressor());
@@ -267,7 +273,116 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	return 0;
 }
 
-int apply(char *tree, char *patch_file)
+int apply(char *before_tree, char *patch_file)
 {
+	if (!before_tree) {
+		fprintf(stderr, "error: <before_tree> missing\n");
+		return 1;
+	}
+
+	if (!patch_file) {
+		fprintf(stderr, "error: <patch_file> missing\n");
+		return 1;
+	}
+
+	path before_path(before_tree);
+	path patch_path(patch_file);
+
+	if (!is_directory(before_path)) {
+		fprintf(stderr, "error: <before_tree> '%s' is not a directory\n", before_path.generic_string().c_str());
+		return 1;
+	}
+
+	if (!exists(patch_path) || !is_regular_file(patch_path)) {
+		fprintf(stderr, "error: <patch_file> '%s' does not exist or not a file\n", patch_path.generic_string().c_str());
+		return 2;
+	}
+	
+	path after_path(get_temp_directory());
+	
+	printf("copying %s to %s...\n", before_path.generic_string().c_str(), after_path.generic_string().c_str());
+
+	copy_directory_recursive(before_path, after_path);
+	DEFER { remove_all(after_path); };
+
+	std::ifstream ifs(patch_path.native(), std::ios::binary);
+	filtering_istream filter;
+
+	filter.push(bzip2_decompressor());
+	filter.push(ifs);
+
+	delta_op_toc toc;
+
+	cereal::PortableBinaryInputArchive archive(filter);
+	archive(toc);
+
+	printf("validating tree initial state %s...\n", after_path.generic_string().c_str());
+
+	std::map<std::string, delta_info> before_tree_state;
+	process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
+		before_tree_state[path.generic_string()] = make_delta_info(i);
+	});
+
+	std::string before_tree_hash = get_tree_hash(before_tree_state);
+	if (before_tree_hash != toc.before_hash) {
+		fprintf(stderr, "error: current tree hash %s does not match the expected tree hash %s\n", 
+				before_tree_hash.c_str(), toc.before_hash.c_str());
+	}
+
+	printf("applying patches...\n");
+
+	std::vector<uint8_t> delta;
+	std::vector<uint8_t> before_file;
+	std::vector<uint8_t> after_file;
+
+	for (auto &i : toc.ops) {
+		switch (i.type) {
+		case delta_op_type::ADD:
+		{
+			auto p = after_path / i.path;
+			if (i.ftype == file_type::directory_file) {
+				create_directory(p);
+				continue;
+			}
+			// symlink handling here
+			archive(delta);
+			set_file_contents(p, delta);
+			continue;
+		}
+		case delta_op_type::PATCH: {
+			auto p = after_path / i.path;
+			auto before_size = file_size(p);
+
+			get_file_contents(p, before_size, before_file);
+			archive(delta);
+			auto after_size = bspatch_newsize(delta.data(), delta.size());		
+			after_file.resize(after_size);
+			int res = bspatch(before_file.data(), before_file.size(), delta.data(), delta.size(), after_file.data(), after_file.size());
+			if (res != 0) {
+				fprintf(stderr, "failed patching %s\n", p.generic_string().c_str());
+			}
+			set_file_contents(p, after_file);
+			continue;
+		}
+		case delta_op_type::DELETE:
+			auto p = after_path / i.path;
+			remove_all(p);
+			continue;
+		}
+	}
+
+	printf("validating tree patched state %s...\n", after_path.generic_string().c_str());
+
+	std::map<std::string, delta_info> after_tree_state;
+	process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
+		after_tree_state[path.generic_string()] = make_delta_info(i);
+	});
+
+	std::string after_tree_hash = get_tree_hash(after_tree_state);
+	if (after_tree_hash != toc.after_hash) {
+		fprintf(stderr, "error: patched tree hash %s does not match the expected tree hash %s\n",
+			after_tree_hash.c_str(), toc.after_hash.c_str());
+	}
+
 	return 0;
 }

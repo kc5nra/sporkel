@@ -101,3 +101,34 @@ path get_temp_directory() {
 	path p(unique_path());
 	return temp_directory_path() / p;
 }
+
+bool copy_directory_recursive(const path &from, const path &to)
+{
+	if (!create_directory(to)) {
+		return false;
+	}
+
+	recursive_directory_iterator end;
+	for (recursive_directory_iterator i(from); i != end; ++i) {
+		if (!is_directory(i->status()) && !is_regular_file(i->status()) && !is_symlink(i->status())) {
+			continue;
+		}
+		
+		path rel_path(make_path_relative(from, i->path()));
+
+		if (is_symlink(i->status())) {
+			create_symlink(read_symlink(i->path()), to / rel_path);
+			continue;
+		}
+		if (is_directory(i->status())) {
+			copy_directory(i->path(), to / rel_path);
+			continue;
+		}
+		if (is_regular_file(i->status())) {	
+			copy_file(i->path(), to / rel_path);
+			continue;
+		}
+	}
+
+	return true;
+}

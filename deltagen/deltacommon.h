@@ -85,6 +85,7 @@ path make_path_relative(path &a_From, path &a_To);
 
 path get_temp_directory();
 path make_path_relative(path a_From, path a_To);
+bool copy_directory_recursive(const path &from, const path &to);
 
 template <typename Func>
 void process_tree(path &p, Func &&f) //std::function<void(path &path, recursive_directory_iterator &i)> f)
