@@ -8,4 +8,11 @@ include(bsdiff.cmake)
 include(cereal.cmake)
 include(sodium.cmake)
 
+find_package(BZip2 QUIET)
+if (NOT BZIP2_FOUND)
+	message("-- BZIP2 not found, compiling statically")
+	include(bz2.cmake)
+endif()
+
 add_subdirectory(boost)
+
