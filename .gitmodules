@@ -58,3 +58,12 @@
 [submodule "ext/cereal"]
 	path = ext/cereal
 	url = https://github.com/USCiLab/cereal.git
+[submodule "ext/boost/iostreams"]
+	path = ext/boost/iostreams
+	url = https://github.com/boostorg/iostreams.git
+[submodule "ext/boost/concept_check"]
+	path = ext/boost/concept_check
+	url = https://github.com/boostorg/concept_check.git
+[submodule "ext/boost/integer"]
+	path = ext/boost/integer
+	url = https://github.com/boostorg/integer.git

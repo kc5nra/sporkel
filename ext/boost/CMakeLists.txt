@@ -10,12 +10,15 @@ SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 set(BOOST_INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/array/include
 	${CMAKE_CURRENT_SOURCE_DIR}/assert/include
+	${CMAKE_CURRENT_SOURCE_DIR}/concept_check/include
 	${CMAKE_CURRENT_SOURCE_DIR}/config/include
 	${CMAKE_CURRENT_SOURCE_DIR}/core/include
 	${CMAKE_CURRENT_SOURCE_DIR}/detail/include
 	${CMAKE_CURRENT_SOURCE_DIR}/filesystem/include
 	${CMAKE_CURRENT_SOURCE_DIR}/functional/include
+	${CMAKE_CURRENT_SOURCE_DIR}/integer/include
 	${CMAKE_CURRENT_SOURCE_DIR}/io/include
+	${CMAKE_CURRENT_SOURCE_DIR}/iostreams/include
 	${CMAKE_CURRENT_SOURCE_DIR}/iterator/include
 	${CMAKE_CURRENT_SOURCE_DIR}/mpl/include
 	${CMAKE_CURRENT_SOURCE_DIR}/predef/include
@@ -32,14 +35,16 @@ set(BOOST_INCLUDE_DIRS
 include_directories(
 	${BOOST_INCLUDE_DIRS})
 
-include(system.cmake)
+include(iostreams.cmake)
 include(filesystem.cmake)
+include(system.cmake)
 
 mark_as_advanced(BOOST_INCLUDE_DIRS)
 
 set(BOOST_LIBRARIES
-	boost-system
 	boost-filesystem
+	boost-iostreams
+	boost-system
 		CACHE STRING "boost libraries")
 
 mark_as_advanced(BOOST_LIBRARIES)
