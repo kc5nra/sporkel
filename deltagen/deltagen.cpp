@@ -180,26 +180,26 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 
 		if (after_info.deleted) {
 			d_op_cnt++;
-			toc.ops.push_back(delta_op(delta_op_type::DELETE, i.first));
+			toc.ops.emplace_back(delta_op_type::DELETE, i.first);
 			continue;
 		}
 
 		auto res = before_tree_state.find(i.first);
 		if (res == end(before_tree_state)) {
 			a_op_cnt++;
-			toc.ops.push_back(delta_op(delta_op_type::ADD, i.first));
+			toc.ops.emplace_back(delta_op_type::ADD, i.first);
 			continue;
 		}
 
 		auto &before_info = res->second;
 		if (before_info.type != after_info.type) {
 			d_op_cnt++; a_op_cnt++;
-			toc.ops.push_back(delta_op(delta_op_type::DELETE, i.first));
-			toc.ops.push_back(delta_op(delta_op_type::ADD, i.first));
+			toc.ops.emplace_back(delta_op_type::DELETE, i.first);
+			toc.ops.emplace_back(delta_op_type::ADD, i.first);
 		}
 		else {
 			b_op_cnt++;
-			toc.ops.push_back(delta_op(delta_op_type::PATCH, i.first));
+			toc.ops.emplace_back(delta_op_type::PATCH, i.first);
 		}
 	}
 
