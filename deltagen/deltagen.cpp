@@ -159,6 +159,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	});
 
 	delta_op_toc toc;
+	toc.ops.reserve(after_tree_state.size() * 2);
 	toc.before_hash = get_tree_hash(before_tree_state);
 	toc.after_hash = get_tree_hash(after_tree_state_unmod);
 	
