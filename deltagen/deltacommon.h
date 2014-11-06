@@ -5,46 +5,65 @@
 #include <string>
 #include <sodium.h>
 
+#include <cereal/cereal.hpp>
+#include <cereal/access.hpp>
+
 using namespace boost::filesystem;
 
-struct delta_info {
+struct delta_info
+{
 	std::string hash;
 	file_type type;
 	unsigned long long size;
 	bool deleted;
 };
 
-enum delta_op_type {
+enum delta_op_type 
+{
 	DELETE,
 	ADD,
 	PATCH
 };
 
-struct delta_op {
+struct delta_op 
+{
 	enum delta_op_type type;
 	std::string path;
 
 	delta_op() {}
 	delta_op(enum delta_op_type type, const std::string &path) : type(type), path(path) {}
 	
+private:
+	friend class cereal::access;
 	template<class Archive>
-	void serialize(Archive & archive)
+	void serialize(Archive & archive, const unsigned int version)
 	{
 		archive(type, path); // serialize things by passing them to the archive
 	}
-};
+}; 
+CEREAL_CLASS_VERSION(delta_op, 1);
 
-struct delta_op_toc {
+struct delta_op_toc 
+{
 	std::vector<struct delta_op> ops;
 	std::string before_hash;
 	std::string after_hash;
 
+private:
+	friend class cereal::access;
 	template<class Archive>
-	void serialize(Archive &ar)
+	void serialize(Archive &ar, const unsigned int version)
 	{
-		ar(ops, before_hash, after_hash);
+		if (version <= 1) {
+			ar(ops, before_hash, after_hash);
+		}
+		else {
+			// unknown version
+			throw cereal::Exception("bad version");
+		}
 	}
-};
+}; 
+CEREAL_CLASS_VERSION(delta_op_toc, 1);
 
 void process_tree(path &p, std::function<void(path &p, recursive_directory_iterator &i)> f);
 bool delta_info_equals(struct delta_info &l, struct delta_info& r);
