@@ -36,9 +36,15 @@ struct delta_op
 private:
 	friend class cereal::access;
 	template<class Archive>
-	void serialize(Archive & archive, const unsigned int version)
+	void serialize(Archive &ar, const unsigned int version)
 	{
-		archive(type, path); // serialize things by passing them to the archive
+		switch (version) {
+		case 1:
+			ar(type, path);
+			break;
+		default:
+			throw cereal::Exception("unknown version");
+		}
 	}
 }; 
 CEREAL_CLASS_VERSION(delta_op, 1);
@@ -54,12 +60,12 @@ private:
 	template<class Archive>
 	void serialize(Archive &ar, const unsigned int version)
 	{
-		if (version <= 1) {
+		switch (version) {
+		case 1:
 			ar(ops, before_hash, after_hash);
-		}
-		else {
-			// unknown version
-			throw cereal::Exception("bad version");
+			break;
+		default:
+			throw cereal::Exception("unknown version");
 		}
 	}
 }; 

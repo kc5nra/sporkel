@@ -46,10 +46,10 @@ void process_tree(path &p, std::function<void(path &path, recursive_directory_it
 
 void hash_delta_info(const std::string &p, struct delta_info &di, crypto_generichash_state &state)
 {
-	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), strlen(p.c_str()));
+	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), p.length());
 	crypto_generichash_update(&state, (const unsigned char *) &di.type, sizeof(decltype(di.type)));
 	crypto_generichash_update(&state, (const unsigned char *) &di.size, sizeof(decltype(di.size)));
-	crypto_generichash_update(&state, (const unsigned char *) di.hash.c_str(), strlen(di.hash.c_str()));
+	crypto_generichash_update(&state, (const unsigned char *) di.hash.c_str(), di.hash.length());
 }
 
 void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state)
@@ -89,7 +89,7 @@ void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state
 	if (is_symlink(i->status())) {
 		path sym_path(::read_symlink(p));
 		std::string s = sym_path.generic_string();
-		crypto_generichash_update(&state, (unsigned char *) s.c_str(), strlen(s.c_str()));
+		crypto_generichash_update(&state, (unsigned char *) s.c_str(), s.length());
 		return;
 	}
 

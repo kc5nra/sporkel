@@ -38,7 +38,7 @@ std::string base64_encode(const unsigned char *buf, size_t size) {
 	int i = 0;
 	int j = 0;
 	unsigned char char_array_3[3];
-    unsigned char char_array_4[4];
+	unsigned char char_array_4[4];
 
 	while (size--) {
 		char_array_3[i++] = *(buf++);
