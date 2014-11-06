@@ -29,21 +29,6 @@ path make_path_relative(path a_From, path a_To)
 	return path_append(ret, itrTo, a_To.end());
 }
 
-void process_tree(path &p, std::function<void(path &path, recursive_directory_iterator &i)> f)
-{
-	recursive_directory_iterator end;
-	for (recursive_directory_iterator i(p); i != end; ++i) {
-		file_type type = i->status().type();
-		if (!is_directory(i->status()) && !is_regular_file(i->status()) && !is_symlink(i->status())) {
-			continue;
-		}
-
-		path rel_path(make_path_relative(p, i->path()));
-		if (!rel_path.empty())
-			f(rel_path, i);
-	}
-}
-
 void hash_delta_info(const std::string &p, const delta_info &di, crypto_generichash_state &state)
 {
 	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), p.length());

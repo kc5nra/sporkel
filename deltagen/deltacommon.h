@@ -82,3 +82,21 @@ void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state
 path make_path_relative(path &a_From, path &a_To);
 
 path get_temp_directory();
+path make_path_relative(path a_From, path a_To);
+
+template <typename Func>
+void process_tree(path &p, Func &&f) //std::function<void(path &path, recursive_directory_iterator &i)> f)
+{
+	recursive_directory_iterator end;
+	for (recursive_directory_iterator i(p); i != end; ++i) {
+		file_type type = i->status().type();
+		if (!is_directory(i->status()) && !is_regular_file(i->status()) && !is_symlink(i->status())) {
+			continue;
+		}
+
+		path rel_path(make_path_relative(p, i->path()));
+		if (!rel_path.empty())
+			f(rel_path, i);
+	}
+}
+
