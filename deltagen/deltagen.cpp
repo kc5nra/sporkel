@@ -47,6 +47,8 @@ bool has_option(char **begin, char **end, const std::string &option)
 
 int create(char *before_tree, char *after_tree, char *patch_file);
 int apply(char *tree, char *patch_file);
+int keypair(char *private_key_file, char *public_key_file);
+int sign(char *private_key_file, char *file);
 
 int show_help(int result, std::string &bn) {
 	if (result == 1) {
@@ -54,6 +56,8 @@ int show_help(int result, std::string &bn) {
 		printf("    help\n");
 		printf("    create <before_tree> <after_tree> <patch_file>\n");
 		printf("    apply <tree> <patch_file>\n");
+		printf("    keypair <private_key_file> <public_key_file>\n");
+		printf("    sign <private_key_file> <file>\n\n");
 	}
 	return result;
 }
@@ -71,13 +75,17 @@ int main(int argc, char **argv)
 
 	bool is_create = HAS_OPTION("create");
 	bool is_apply = HAS_OPTION("apply");
+	bool is_keypair = HAS_OPTION("keypair");
+	bool is_sign = HAS_OPTION("sign");
 
-	if (is_create ^ is_apply) {
-		if (is_create)
-			result = create(OPTION(2), OPTION(3), OPTION(4));
-		else
-			result = apply(OPTION(2), OPTION(3));
-	}
+	if (is_create)
+		result = create(OPTION(2), OPTION(3), OPTION(4));
+	else if (is_apply)
+		result = apply(OPTION(2), OPTION(3));
+	else if (is_keypair)
+		result = keypair(OPTION(2), OPTION(3));
+	else if (is_sign)
+		result = sign(OPTION(2), OPTION(3));
 	else {
 		fprintf(stderr, "error: command must be specified\n");
 		result = 1;
@@ -103,9 +111,93 @@ void get_file_contents(path &p, size_t size, std::vector<uint8_t> &buf) {
 	f.read(reinterpret_cast<char*>(buf.data()), size);
 }
 
-void set_file_contents(path &p, std::vector<uint8_t> &buf) {
+void set_file_contents(path &p, uint8_t *data, size_t len) {
 	std::ofstream f(p.native(), std::ios::binary);
-	f.write((char *)buf.data(), buf.size());
+	f.write((char *)data, len);
+}
+
+int sign(char *private_key_file, char *file)
+{
+	if (!private_key_file) {
+		fprintf(stderr, "error: <private_key_file> missing\n");
+		return 1;
+	}
+
+	if (!file) {
+		fprintf(stderr, "error: <file> missing\n");
+		return 1;
+	}
+
+	path private_key_path(private_key_file);
+	path file_path(file);
+
+	if (!exists(private_key_path)) {
+		fprintf(stderr, "error: <private_key_path> '%s' does not exist\n", private_key_path.generic_string().c_str());
+		return 2;
+	}
+
+	if (!exists(file_path)) {
+		fprintf(stderr, "error: <file> '%s' does not exist\n", file_path.generic_string().c_str());
+		return 2;
+	}
+
+	std::vector<uint8_t> private_key_bytes;
+	get_file_contents(private_key_path, file_size(private_key_path), private_key_bytes);
+	std::string private_key((char *) private_key_bytes.data());
+
+	private_key_bytes.resize(0);
+	hex2bin(private_key, private_key_bytes);
+
+	std::vector<uint8_t> file_contents;
+	get_file_contents(file_path, file_size(file_path), file_contents);
+
+	unsigned char sig[crypto_sign_BYTES];
+	crypto_sign_detached(sig, NULL, file_contents.data(), file_contents.size(), private_key_bytes.data());
+
+	std::string signature(bin2hex(sig));
+	printf("%s\n", signature.c_str());
+
+	return 0;
+}
+
+int keypair(char *private_key_file, char *public_key_file)
+{
+	if (!private_key_file) {
+		fprintf(stderr, "error: <private_key_file> missing\n");
+		return 1;
+	}
+
+	if (!public_key_file) {
+		fprintf(stderr, "error: <public_key_file> missing\n");
+		return 1;
+	}
+
+	path private_key_path(private_key_file);
+	path public_key_path(public_key_file);
+
+	if (exists(private_key_path)) {
+		fprintf(stderr, "error: <private_key_path> '%s' already exists\n", private_key_path.generic_string().c_str());
+		return 2;
+	}
+
+	if (exists(public_key_path)) {
+		fprintf(stderr, "error: <public_key_path> '%s' already exists\n", public_key_path.generic_string().c_str());
+		return 2;
+	}
+
+	unsigned char pk[crypto_sign_PUBLICKEYBYTES];
+	unsigned char sk[crypto_sign_SECRETKEYBYTES];
+
+	printf("generating public and private key...");
+	crypto_sign_keypair(pk, sk);
+
+	std::string private_key(bin2hex(sk));
+	std::string public_key(bin2hex(pk));
+
+	set_file_contents(private_key_path, (uint8_t *)private_key.c_str(), private_key.length());
+	set_file_contents(public_key_path, (uint8_t *)public_key.c_str(), public_key.length());
+
+	return 0;
 }
 
 int create(char *before_tree, char *after_tree, char *patch_file)
@@ -347,7 +439,7 @@ int apply(char *before_tree, char *patch_file)
 			}
 			// symlink handling here
 			archive(delta);
-			set_file_contents(p, delta);
+			set_file_contents(p, delta.data(), delta.size());
 			continue;
 		}
 		case delta_op_type::PATCH: {
@@ -362,7 +454,7 @@ int apply(char *before_tree, char *patch_file)
 			if (res != 0) {
 				fprintf(stderr, "failed patching %s\n", p.generic_string().c_str());
 			}
-			set_file_contents(p, after_file);
+			set_file_contents(p, after_file.data(), after_file.size());
 			continue;
 		}
 		case delta_op_type::DELETE:
