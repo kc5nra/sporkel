@@ -43,7 +43,7 @@ bool has_option(char **begin, char **end, const std::string &option)
 	return std::find(begin, end, option) != end;
 }
 
-#define HAS_OPTION(x) has_option(argv, argv + argc, x)
+#define HAS_OPTION(x) (argc >= 2 ? std::string(x) == argv[1] : false)
 #define OPTION(x) (x < argc ? argv[x] : NULL)
 
 int create(char *before_tree, char *after_tree, char *patch_file);
@@ -52,6 +52,7 @@ int apply(char *tree, char *patch_file);
 int show_help(int result, std::string &bn) {
 	if (result == 1) {
 		printf("usage: %s <command> <args>\n\n", bn.c_str());
+		printf("    help\n");
 		printf("    create <before_tree> <after_tree> <patch_file>\n");
 		printf("    apply <tree> <patch_file>\n");
 	}
@@ -63,7 +64,7 @@ int main(int argc, char **argv)
 	
 	std::string bn = basename(path(argv[0]));
 
-	if (HAS_OPTION("-h") || HAS_OPTION("--help")) {
+	if (HAS_OPTION("help")) {
 		return show_help(1, bn);
 	}
 
@@ -71,6 +72,7 @@ int main(int argc, char **argv)
 
 	bool is_create = HAS_OPTION("create");
 	bool is_apply = HAS_OPTION("apply");
+
 	if (is_create ^ is_apply) {
 		if (is_create)
 			result = create(OPTION(2), OPTION(3), OPTION(4));
@@ -78,7 +80,7 @@ int main(int argc, char **argv)
 			result = apply(OPTION(2), OPTION(3));
 	}
 	else {
-		fprintf(stderr, "error: create or apply command must be specified\n");
+		fprintf(stderr, "error: command must be specified\n");
 		result = 1;
 	}
 
