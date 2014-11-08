@@ -6,6 +6,7 @@ include_directories(
 	bsdiff)
 
 set(bsdiff_SOURCES
+	bsdiff/sais.c
 	bsdiff/bsdiff.c
 	bsdiff/bspatch.c)
 

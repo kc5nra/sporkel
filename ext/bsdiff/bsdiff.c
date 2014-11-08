@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD: src/usr.bin/bsdiff/bsdiff/bsdiff.c,v 1.1 2005/08/06 01:59:05
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "sais.h"
+
 #define MIN(x,y) (((x)<(y)) ? (x) : (y))
 
 /* Header is
@@ -221,7 +223,7 @@ int bsdiff(u_char* oldp, off_t oldsize,
            u_char* newp, off_t newsize,
            u_char* patch, off_t patchsz)
 {
-  off_t *I,*V;
+  off_t *I;//,*V;
   off_t scan,pos,len;
   off_t lastscan,lastpos,lastoffset;
   off_t oldscore,scsc;
@@ -243,12 +245,14 @@ int bsdiff(u_char* oldp, off_t oldsize,
 
   /* Allocate oldsize+1 bytes instead of oldsize bytes to ensure
      that we never try to malloc(0) and get a NULL pointer */
-  if(((I=malloc((oldsize+1)*sizeof(off_t)))==NULL) ||
-     ((V=malloc((oldsize+1)*sizeof(off_t)))==NULL)) return -1;
+  if(((I=malloc((oldsize+1)*sizeof(off_t)))==NULL) /*||
+     ((V=malloc((oldsize+1)*sizeof(off_t)))==NULL)*/) return -1;
 
-  qsufsort(I,V,oldp,oldsize);
+  I[0] = oldsize;
+  sais(oldp, I + 1, oldsize);
+  //qsufsort(I,V,oldp,oldsize);
 
-  free(V);
+  //free(V);
 
   /* Allocate newsize+1 bytes instead of newsize bytes to ensure
      that we never try to malloc(0) and get a NULL pointer */
