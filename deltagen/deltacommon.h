@@ -32,6 +32,7 @@ struct delta_op
 	delta_op_type type;
 	std::string path;
 	file_type ftype;
+	std::vector<uint8_t> patch;
 
 	delta_op() = default;
 	delta_op(delta_op_type type, const std::string &path, file_type ftype) 

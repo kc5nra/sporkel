@@ -3,6 +3,10 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+#include <numeric>
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
@@ -45,7 +49,8 @@ bool has_option(char **begin, char **end, const std::string &option)
 #define HAS_OPTION(x) (argc >= 2 ? std::string(x) == argv[1] : false)
 #define OPTION(x) (x < argc ? argv[x] : NULL)
 
-int create(char *before_tree, char *after_tree, char *patch_file);
+int create(char *before_tree, char *after_tree, char *patch_file,
+		char *threads, char *mem_limit, char *cache_dir);
 int apply(char *tree, char *patch_file);
 int keypair(char *private_key_file, char *public_key_file);
 int sign(char *private_key_file, char *file);
@@ -54,7 +59,7 @@ int show_help(int result, std::string &bn) {
 	if (result == 1) {
 		printf("usage: %s <command> <args>\n\n", bn.c_str());
 		printf("    help\n");
-		printf("    create <before_tree> <after_tree> <patch_file>\n");
+		printf("    create <before_tree> <after_tree> <patch_file> [threads [mem_limit [cache_dir]]]\n");
 		printf("    apply <tree> <patch_file>\n");
 		printf("    keypair <private_key_file> <public_key_file>\n");
 		printf("    sign <private_key_file> <file>\n\n");
@@ -79,7 +84,7 @@ int main(int argc, char **argv)
 	bool is_sign = HAS_OPTION("sign");
 
 	if (is_create)
-		result = create(OPTION(2), OPTION(3), OPTION(4));
+		result = create(OPTION(2), OPTION(3), OPTION(4), OPTION(5), OPTION(6), OPTION(7));
 	else if (is_apply)
 		result = apply(OPTION(2), OPTION(3));
 	else if (is_keypair)
@@ -200,7 +205,47 @@ int keypair(char *private_key_file, char *public_key_file)
 	return 0;
 }
 
-int create(char *before_tree, char *after_tree, char *patch_file)
+struct deferred_patch_info
+{
+	using patch_t = std::vector<uint8_t>*;
+	size_t before_size, after_size;
+	size_t max_patch_size;
+	path before_path, after_path;
+	patch_t patch;
+	bool processing = false;
+	bool done = false;
+
+	deferred_patch_info(size_t before_size, size_t after_size, size_t max_patch_size,
+			path before_path, path after_path, patch_t patch) :
+		before_size(before_size), after_size(after_size), max_patch_size(max_patch_size),
+		before_path(before_path), after_path(after_path), patch(patch)
+	{
+		patch->resize(max_patch_size + 1);
+	}
+
+	size_t max_mem_usage() const
+	{
+		return std::max(17 * before_size, 9 * before_size + after_size) + max_patch_size;
+	}
+};
+
+template <typename T>
+static inline T parse_val(char *string, T def)
+{
+	try
+	{
+		return string ? std::stoull(string) : def;
+	}
+	catch (const std::invalid_argument&)
+	{}
+	catch (const std::out_of_range&)
+	{}
+
+	return def;
+}
+
+int create(char *before_tree, char *after_tree, char *patch_file,
+		char *threads, char *mem_limit, char *cache_dir)
 {
 	if (!before_tree) {
 		fprintf(stderr, "error: <before_tree> missing\n");
@@ -220,6 +265,7 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	path before_path(before_tree);
 	path after_path(after_tree);
 	path patch_path(patch_file);
+	path cache_path;
 	
 	if (!is_directory(before_path)) {
 		fprintf(stderr, "error: <before_tree> '%s' is not a directory\n", before_path.generic_string().c_str());
@@ -235,6 +281,16 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 		fprintf(stderr, "error: <patch_file> '%s' already exists\n", patch_path.generic_string().c_str());
 		return 2;
 	}
+
+	if (cache_dir && !is_directory(cache_path = absolute(cache_dir))) {
+		fprintf(stderr, "error: [cache_dir] '%s' is not a directory", cache_path.generic_string().c_str());
+		return 3;
+	}
+
+	const auto num_threads  = parse_val(threads, std::max(1u, std::thread::hardware_concurrency()));
+	auto memory_limit = parse_val<size_t>(mem_limit, -1);
+	if (memory_limit != -1)
+		memory_limit *= 1024 * 1024;
 
 	std::map<std::string, delta_info> before_tree_state;
 	std::map<std::string, delta_info> after_tree_state_unmod;
@@ -283,9 +339,10 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 	printf("generating delta operations...\n");
 	
 	int a_op_cnt = 0;
-	int b_op_cnt = 0;
 	int d_op_cnt = 0;
-	
+
+	std::vector<deferred_patch_info> patch_infos;
+
 	for (auto &i : after_tree_state) {
 		auto &after_info = i.second;
 
@@ -309,12 +366,95 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 			toc.ops.emplace_back(delta_op_type::ADD, i.first, after_info.type);
 		}
 		else {
-			b_op_cnt++;
 			toc.ops.emplace_back(delta_op_type::PATCH, i.first, before_info.type);
+			
+			size_t max_size = bsdiff_patchsize_max(before_info.size, after_info.size);
+			patch_infos.emplace_back(before_info.size, after_info.size, max_size,
+					before_path / i.first, after_path / i.first, &toc.ops.back().patch);
 		}
 	}
 
-	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, b_op_cnt);
+	std::sort(begin(patch_infos), end(patch_infos),
+			[](const deferred_patch_info &a, const deferred_patch_info &b) {
+		return a.max_mem_usage() > b.max_mem_usage();
+	});
+
+	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, static_cast<int>(patch_infos.size()));
+
+	const size_t buffer_size = std::accumulate(begin(patch_infos), end(patch_infos), 0,
+			[](size_t start, const deferred_patch_info &b) {
+		return start + b.max_patch_size;
+	});
+
+	auto min_memory_limit = buffer_size + (patch_infos.empty() ? 0 : patch_infos.front().max_mem_usage());
+	if (min_memory_limit > memory_limit) {
+		fprintf(stderr, "warning: memory limit < required memory for largest patch: %u < %u",
+				static_cast<unsigned>(memory_limit / 1024 / 1024),
+				static_cast<unsigned>(min_memory_limit / 1024 / 1024 + 1));
+		return 5;
+	}
+
+
+	size_t memory_used = buffer_size;
+	std::mutex patch_info_mutex;
+	std::condition_variable wake_threads;
+
+	std::cout << "using " << num_threads << " threads (hw: " << std::thread::hardware_concurrency() << ")\n";
+	std::vector<std::thread> patcher_threads;
+	patcher_threads.reserve(num_threads);
+	for (unsigned i = 0; i < num_threads && !patch_infos.empty(); i++) {
+		patcher_threads.emplace_back([&]() {
+			std::vector<uint8_t> p1_data;
+			std::vector<uint8_t> p2_data;
+
+			for (;;) {
+				deferred_patch_info *work_item = nullptr;
+				bool all_done = true;
+				{
+					auto lock = std::unique_lock<std::mutex>(patch_info_mutex);
+					for (auto &info : patch_infos) {
+						all_done = all_done && info.done;
+						if (!info.done && !info.processing && info.max_mem_usage() < (memory_limit - memory_used)) {
+							work_item = &info;
+							break;
+						}
+					}
+					if (work_item) {
+						work_item->processing = true;
+						memory_used += work_item->max_mem_usage();
+					}
+				}
+
+				if (all_done)
+					return;
+
+				if (!work_item) {
+					auto lock = std::unique_lock<std::mutex>(patch_info_mutex);
+					wake_threads.wait(lock, [] { return true; });
+					continue;
+				}
+
+				get_file_contents(work_item->before_path, work_item->before_size, p1_data);
+				get_file_contents(work_item->after_path,  work_item->after_size,  p2_data);
+
+				int actual_size = bsdiff(p1_data.data(), work_item->before_size,
+						p2_data.data(), work_item->after_size, work_item->patch->data(),
+						work_item->max_patch_size);
+				work_item->patch->resize(actual_size);
+
+				{
+
+					auto lock = std::unique_lock<std::mutex>(patch_info_mutex);
+					work_item->done = true;
+					memory_used -= work_item->max_mem_usage();
+				}
+				wake_threads.notify_all();
+			}
+		});
+	}
+
+	for (auto &i : patcher_threads)
+		i.join();
 
 	std::ofstream ofs(patch_path.native(), std::ios::binary);
 	filtering_ostream filter;
@@ -340,24 +480,8 @@ int create(char *before_tree, char *after_tree, char *patch_file)
 			break;
 		}
 		case delta_op_type::PATCH:
-		{
-			path p1(before_path / path(i.path));
-			path p2(after_path / path(i.path));
-			size_t s1 = file_size(p1);
-			size_t s2 = file_size(p2);
-			std::vector<uint8_t> p1_data;
-			std::vector<uint8_t> p2_data;
-			get_file_contents(p1, s1, p1_data);
-			get_file_contents(p2, s2, p2_data);
-			auto max_size = bsdiff_patchsize_max(s1, s2);
-			delta.resize(max_size + 1);
-			std::cout << "diffing " << i.path << " (" << s1 << "b -> " << s2 << "b)...";
-			int actual_size = bsdiff(p1_data.data(), s1, p2_data.data(), s2, delta.data(), max_size);
-			delta.resize(actual_size);
-			archive(delta);
-			std::cout << " done. (" << actual_size << "b patch)" << std::endl;
+			archive(i.patch);
 			break;
-		}
 		case delta_op_type::DELETE:
 			break;
 		}

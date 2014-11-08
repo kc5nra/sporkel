@@ -22,6 +22,10 @@ add_executable(deltagen
 	${deltagen_SOURCES}
 	${deltagen_HEADERS})
 
+if (UNIX AND NOT APPLE)
+	set_target_properties(deltagen PROPERTIES LINK_FLAGS -pthread)
+endif()
+
 target_link_libraries(deltagen
 	bsdiff
 	sodium
