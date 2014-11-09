@@ -1,7 +1,6 @@
 #include <sodium.h>
 #include <fstream>
 
-#include "base64.h"
 #include "deltacommon.h"
 
 path& path_append(path &_this, path::iterator begin, path::iterator end)
@@ -93,7 +92,7 @@ std::string hash_entry(recursive_directory_iterator &i)
 	hash_entry(i, state);
 	crypto_generichash_final(&state, hash, sizeof(hash));
 
-	return std::string(base64_encode(&hash[0], sizeof(hash)));
+	return bin2hex(hash);
 }
 
 path get_temp_directory() {
@@ -131,4 +130,13 @@ bool copy_directory_recursive(const path &from, const path &to)
 	}
 
 	return true;
+}
+
+void hex2bin(const std::string &hex, std::vector<unsigned char> &bin)
+{
+    bin.resize(hex.length() / 2 + 1);
+    const char *end;
+    size_t size;
+    sodium_hex2bin(bin.data(), bin.size(), hex.c_str(), hex.length(), NULL, &size, &end);
+    // assert hex.length() == size?
 }

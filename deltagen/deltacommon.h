@@ -103,3 +103,12 @@ void process_tree(path &p, Func &&f) //std::function<void(path &path, recursive_
 	}
 }
 
+template <size_t N, typename T>
+std::string bin2hex(T(&data)[N])
+{
+	char hex[N * 2 + 1];
+	sodium_bin2hex(hex, N * 2 + 1, static_cast<unsigned char *>(data), N);
+	return hex;
+}
+
+void hex2bin(const std::string &hex, std::vector<unsigned char> &bin);

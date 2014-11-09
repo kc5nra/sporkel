@@ -12,7 +12,6 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/string.hpp>
 
-#include "base64.h"
 #include "deltagen.h"
 #include "deltacommon.h"
 #include "scopeguard.h"
@@ -95,7 +94,7 @@ std::string get_tree_hash(const std::map<std::string, delta_info> &tree) {
 		hash_delta_info(i.first, i.second, state);
 	}
 	crypto_generichash_final(&state, hash, sizeof(hash));
-	return base64_encode((const unsigned char *) &hash[0], sizeof(hash));
+	return bin2hex(hash);
 }
 
 void get_file_contents(path &p, size_t size, std::vector<uint8_t> &buf) {
