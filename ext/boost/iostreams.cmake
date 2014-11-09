@@ -9,7 +9,6 @@ include_directories(
 	${LIBLZMA_INCLUDE_DIRS})
 
 set(boost-iostreams_SOURCES
-	iostreams/src/bzip2.cpp
 	iostreams_lzma/src/lzma.cpp)
 
 add_library(boost-iostreams
@@ -17,5 +16,4 @@ add_library(boost-iostreams
 	${boost-iostreams_SOURCES})
 
 target_link_libraries(boost-iostreams
-	${BZIP2_LIBRARIES}
 	${LIBLZMA_LIBRARIES})

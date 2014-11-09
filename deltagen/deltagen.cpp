@@ -9,7 +9,6 @@
 #include <numeric>
 
 #include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
