@@ -11,6 +11,12 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <boost/iostreams/filter/lzma.hpp>
+
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/portable_binary.hpp>
 #include <cereal/types/vector.hpp>
@@ -125,8 +131,9 @@ void write_cached_diff(const path &p, const std::vector<uint8_t> &data)
 {
 	create_directories(p.parent_path());
 	std::ofstream f(p.native(), std::ios::binary | std::ios::trunc);
+
 	filtering_ostream filter;
-	filter.push(bzip2_compressor());
+	filter.push(lzma_compressor({}, 4096));
 	filter.push(f);
 
 	cereal::PortableBinaryOutputArchive archive(filter);
@@ -138,7 +145,7 @@ void read_cached_diff(const path &p, std::vector<uint8_t> &data)
 {
 	std::ifstream f(p.native(), std::ios::binary);
 	filtering_istream filter;
-	filter.push(bzip2_decompressor());
+	filter.push(lzma_decompressor());
 	filter.push(f);
 
 	cereal::PortableBinaryInputArchive archive(filter);
@@ -497,7 +504,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 
 	std::ofstream ofs(patch_path.native(), std::ios::binary);
 	filtering_ostream filter;
-	filter.push(bzip2_compressor());
+	filter.push(lzma_compressor({}, 4096));
 	filter.push(ofs);
 
 	cereal::PortableBinaryOutputArchive archive(filter);
@@ -564,7 +571,7 @@ int apply(char *before_tree, char *patch_file)
 	std::ifstream ifs(patch_path.native(), std::ios::binary);
 	filtering_istream filter;
 
-	filter.push(bzip2_decompressor());
+	filter.push(lzma_decompressor());
 	filter.push(ifs);
 
 	delta_op_toc toc;
@@ -595,7 +602,7 @@ int apply(char *before_tree, char *patch_file)
 		switch (i.type) {
 		case delta_op_type::ADD:
 		{
-			auto p = after_path / i.path;
+			path p = after_path / i.path;
 			if (i.ftype == file_type::directory_file) {
 				create_directory(p);
 				continue;
@@ -606,7 +613,7 @@ int apply(char *before_tree, char *patch_file)
 			continue;
 		}
 		case delta_op_type::PATCH: {
-			auto p = after_path / i.path;
+			path p = after_path / i.path;
 			auto before_size = file_size(p);
 
 			get_file_contents(p, before_size, before_file);
@@ -621,7 +628,7 @@ int apply(char *before_tree, char *patch_file)
 			continue;
 		}
 		case delta_op_type::DELETE:
-			auto p = after_path / i.path;
+			path p = after_path / i.path;
 			remove_all(p);
 			continue;
 		}
