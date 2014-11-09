@@ -19,6 +19,7 @@ set(BOOST_INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/integer/include
 	${CMAKE_CURRENT_SOURCE_DIR}/io/include
 	${CMAKE_CURRENT_SOURCE_DIR}/iostreams/include
+	${CMAKE_CURRENT_SOURCE_DIR}/iostreams_lzma/include
 	${CMAKE_CURRENT_SOURCE_DIR}/iterator/include
 	${CMAKE_CURRENT_SOURCE_DIR}/mpl/include
 	${CMAKE_CURRENT_SOURCE_DIR}/predef/include
