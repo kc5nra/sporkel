@@ -121,6 +121,31 @@ void set_file_contents(path &p, uint8_t *data, size_t len) {
 	f.write((char *)data, len);
 }
 
+void write_cached_diff(const path &p, const std::vector<uint8_t> &data)
+{
+	create_directories(p.parent_path());
+	std::ofstream f(p.native(), std::ios::binary | std::ios::trunc);
+	filtering_ostream filter;
+	filter.push(bzip2_compressor());
+	filter.push(f);
+
+	cereal::PortableBinaryOutputArchive archive(filter);
+
+	archive(data);
+}
+
+void read_cached_diff(const path &p, std::vector<uint8_t> &data)
+{
+	std::ifstream f(p.native(), std::ios::binary);
+	filtering_istream filter;
+	filter.push(bzip2_decompressor());
+	filter.push(f);
+
+	cereal::PortableBinaryInputArchive archive(filter);
+
+	archive(data);
+}
+
 int sign(char *private_key_file, char *file)
 {
 	if (!private_key_file) {
@@ -211,6 +236,7 @@ struct deferred_patch_info
 	size_t before_size, after_size;
 	size_t max_patch_size;
 	path before_path, after_path;
+	path cache_path;
 	patch_t patch;
 	bool processing = false;
 	bool done = false;
@@ -339,6 +365,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	printf("generating delta operations...\n");
 	
 	int a_op_cnt = 0;
+	int b_op_cnt = 0;
 	int d_op_cnt = 0;
 
 	std::vector<deferred_patch_info> patch_infos;
@@ -366,11 +393,21 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 			toc.ops.emplace_back(delta_op_type::ADD, i.first, after_info.type);
 		}
 		else {
+			b_op_cnt++;
 			toc.ops.emplace_back(delta_op_type::PATCH, i.first, before_info.type);
-			
+
+			path cache_file_path = cache_path / before_info.hash / after_info.hash;
+			if (!cache_path.empty() && exists(cache_file_path)) {
+				read_cached_diff(cache_file_path, toc.ops.back().patch);
+				continue;
+			}
+
 			size_t max_size = bsdiff_patchsize_max(before_info.size, after_info.size);
 			patch_infos.emplace_back(before_info.size, after_info.size, max_size,
 					before_path / i.first, after_path / i.first, &toc.ops.back().patch);
+
+			if (!cache_path.empty())
+				patch_infos.back().cache_path = cache_file_path;
 		}
 	}
 
@@ -378,8 +415,6 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 			[](const deferred_patch_info &a, const deferred_patch_info &b) {
 		return a.max_mem_usage() > b.max_mem_usage();
 	});
-
-	printf("  %4d deletions\n  %4d additions\n  %4d bpatches\n", d_op_cnt, a_op_cnt, static_cast<int>(patch_infos.size()));
 
 	const size_t buffer_size = std::accumulate(begin(patch_infos), end(patch_infos), 0,
 			[](size_t start, const deferred_patch_info &b) {
@@ -394,6 +429,8 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 		return 5;
 	}
 
+	printf("  %4d deletions\n  %4d additions\n  %4d bpatches (%d cached)\n",
+			d_op_cnt, a_op_cnt, b_op_cnt, static_cast<int>(b_op_cnt - patch_infos.size()));
 
 	size_t memory_used = buffer_size;
 	std::mutex patch_info_mutex;
@@ -441,6 +478,8 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 						p2_data.data(), work_item->after_size, work_item->patch->data(),
 						work_item->max_patch_size);
 				work_item->patch->resize(actual_size);
+				if (!work_item->cache_path.empty())
+					write_cached_diff(work_item->cache_path, *work_item->patch);
 
 				{
 
