@@ -128,8 +128,8 @@ void set_file_contents(path &p, uint8_t *data, size_t len) {
 
 void write_cached_diff(const path &p, const std::vector<uint8_t> &data)
 {
-	create_directories(p.parent_path());
-	std::ofstream f(p.native(), std::ios::binary | std::ios::trunc);
+	path tmp = unique_path();
+	std::ofstream f(tmp.native(), std::ios::binary | std::ios::trunc);
 
 	filtering_ostream filter;
 	filter.push(lzma_compressor({}, 4096));
@@ -138,6 +138,9 @@ void write_cached_diff(const path &p, const std::vector<uint8_t> &data)
 	cereal::PortableBinaryOutputArchive archive(filter);
 
 	archive(data);
+
+	create_directories(p.parent_path());
+	rename(tmp, p);
 }
 
 void read_cached_diff(const path &p, std::vector<uint8_t> &data)
