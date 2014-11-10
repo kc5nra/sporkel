@@ -609,6 +609,7 @@ int apply(char *before_tree, char *patch_file)
 	if (before_tree_hash != toc.before_hash) {
 		fprintf(stderr, "error: current tree hash %s does not match the expected tree hash %s\n", 
 				before_tree_hash.c_str(), toc.before_hash.c_str());
+		return 2;
 	}
 
 	printf("applying patches...\n");
@@ -664,6 +665,7 @@ int apply(char *before_tree, char *patch_file)
 	if (after_tree_hash != toc.after_hash) {
 		fprintf(stderr, "error: patched tree hash %s does not match the expected tree hash %s\n",
 			after_tree_hash.c_str(), toc.after_hash.c_str());
+		return 2;
 	}
 
 	return 0;
