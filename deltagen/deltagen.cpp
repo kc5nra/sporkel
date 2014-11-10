@@ -334,35 +334,50 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	delta_info deleted;
 	deleted.deleted = true;
 
+	delta_op_toc toc;
+
 	printf("processing %s...\n", before_path.generic_string().c_str());
-	process_tree(before_path, [&](path &path, const directory_entry &i) {
-		auto before_info = make_delta_info(i);
-		auto key(path.generic_string());
-		before_tree_state[key] = before_info;
-		after_tree_state[key] = deleted;
+	std::thread before_thread([&] {
+		process_tree(before_path, [&](path &path, const directory_entry &i) {
+			auto before_info = make_delta_info(i);
+			auto key(path.generic_string());
+			before_tree_state.emplace(key, std::move(before_info));
+			after_tree_state.emplace(std::move(key), deleted);
+		});
+
+		toc.before_hash = get_tree_hash(before_tree_state);
 	});
 
 	printf("processing %s...\n", after_path.generic_string().c_str());
-	process_tree(after_path, [&](path &path, const directory_entry &i) {
-		auto after_info = make_delta_info(i);
-		auto key(path.generic_string());
-		after_tree_state_unmod[key] = after_info;
+	std::thread after_thread([&] {
+		process_tree(after_path, [&](path &path, const directory_entry &i) {
+			auto after_info = make_delta_info(i);
+			auto key(path.generic_string());
+			after_tree_state_unmod.emplace(std::move(key), std::move(after_info));
+		});
+
+		toc.after_hash = get_tree_hash(after_tree_state_unmod);
+	});
+
+	before_thread.join();
+	after_thread.join();
+
+	for (auto &after : after_tree_state_unmod) {
+		auto &key  = after.first;
+		auto &info = after.second;
 
 		auto res = before_tree_state.find(key);
 		if (res != end(before_tree_state)) {
-			if (res->second == after_info) {
+			if (res->second == info) {
 				after_tree_state.erase(key);
-				return;
+				continue;
 			}
 		}
 		
-		after_tree_state[key] = after_info;
-	});
+		after_tree_state[key] = info;
+	}
 
-	delta_op_toc toc;
 	toc.ops.reserve(after_tree_state.size() * 2);
-	toc.before_hash = get_tree_hash(before_tree_state);
-	toc.after_hash = get_tree_hash(after_tree_state_unmod);
 	
 	printf("before tree: '%s'\n", before_path.generic_string().c_str());
 	printf("    hash: '%s'\n", toc.before_hash.c_str());
