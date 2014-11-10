@@ -257,7 +257,7 @@ struct deferred_patch_info
 
 	size_t max_mem_usage() const
 	{
-		return std::max(17 * before_size, 9 * before_size + after_size) + max_patch_size;
+		return (sizeof(off_t) + 1) * before_size + 3 * after_size;
 	}
 };
 
