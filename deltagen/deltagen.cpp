@@ -377,8 +377,6 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 		after_tree_state[key] = info;
 	}
 
-	toc.ops.reserve(after_tree_state.size() * 2);
-	
 	printf("before tree: '%s'\n", before_path.generic_string().c_str());
 	printf("    hash: '%s'\n", toc.before_hash.c_str());
 	std::cout << "    file count: " << before_tree_state.size() << std::endl;
@@ -392,6 +390,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	int b_op_cnt = 0;
 	int d_op_cnt = 0;
 
+	toc.ops.reserve(after_tree_state.size() * 2);
 	std::vector<deferred_patch_info> patch_infos;
 
 	for (auto &i : after_tree_state) {
