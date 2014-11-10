@@ -36,15 +36,15 @@ void hash_delta_info(const std::string &p, const delta_info &di, crypto_generich
 	crypto_generichash_update(&state, (const unsigned char *) di.hash.c_str(), di.hash.length());
 }
 
-void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state)
+void hash_entry(const directory_entry &i, crypto_generichash_state &state)
 {
 	
-	auto &p = i->path();
+	auto &p = i.path();
 	size_t size = 0;
-	if (is_regular_file(i->status()))
-		size = (size_t)file_size(i->path());
+	if (is_regular_file(i.status()))
+		size = (size_t)file_size(i.path());
 
-	if (is_regular(i->status())) {
+	if (is_regular(i.status())) {
 
 		char chunk_buffer[16 * 1024];
 		size_t chunk_buffer_size = sizeof(chunk_buffer);
@@ -70,20 +70,20 @@ void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state
 		return;
 	}
 
-	if (is_symlink(i->status())) {
+	if (is_symlink(i.status())) {
 		path sym_path(::read_symlink(p));
 		std::string s = sym_path.generic_string();
 		crypto_generichash_update(&state, (unsigned char *) s.c_str(), s.length());
 		return;
 	}
 
-	if (is_directory(i->status())) {
+	if (is_directory(i.status())) {
 		crypto_generichash_update(&state, (const unsigned char *)"d", 1);
 		return;
 	}
 }
 
-std::string hash_entry(recursive_directory_iterator &i)
+std::string hash_entry(const directory_entry &i)
 {
 	crypto_generichash_state state;
 	unsigned char hash[crypto_generichash_BYTES];

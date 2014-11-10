@@ -79,8 +79,8 @@ CEREAL_CLASS_VERSION(delta_op_toc, 1);
 void process_tree(path &p, std::function<void(path &p, recursive_directory_iterator &i)> f);
 
 void hash_delta_info(const std::string &path, const delta_info &di, crypto_generichash_state &state);
-std::string hash_entry(recursive_directory_iterator &i);
-void hash_entry(recursive_directory_iterator &i, crypto_generichash_state &state);
+std::string hash_entry(const directory_entry &i);
+void hash_entry(const directory_entry &i, crypto_generichash_state &state);
 
 path make_path_relative(path &a_From, path &a_To);
 
@@ -100,7 +100,7 @@ void process_tree(path &p, Func &&f) //std::function<void(path &path, recursive_
 
 		path rel_path(make_path_relative(p, i->path()));
 		if (!rel_path.empty())
-			f(rel_path, i);
+			f(rel_path, *i);
 	}
 }
 

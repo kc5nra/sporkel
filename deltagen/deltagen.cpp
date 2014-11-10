@@ -28,14 +28,14 @@
 
 using namespace boost::iostreams;
 
-delta_info make_delta_info(recursive_directory_iterator &i)
+delta_info make_delta_info(const directory_entry &i)
 {
 	delta_info di;
 	
-	di.type = i->status().type();
+	di.type = i.status().type();
 	di.size = 0;
-	if (is_regular_file(i->status()))
-		di.size = file_size(i->path());
+	if (is_regular_file(i.status()))
+		di.size = file_size(i.path());
 	di.hash = hash_entry(i);
 	di.deleted = false;
 
@@ -335,7 +335,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	deleted.deleted = true;
 
 	printf("processing %s...\n", before_path.generic_string().c_str());
-	process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
+	process_tree(before_path, [&](path &path, const directory_entry &i) {
 		auto before_info = make_delta_info(i);
 		auto key(path.generic_string());
 		before_tree_state[key] = before_info;
@@ -343,7 +343,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	});
 
 	printf("processing %s...\n", after_path.generic_string().c_str());
-	process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
+	process_tree(after_path, [&](path &path, const directory_entry &i) {
 		auto after_info = make_delta_info(i);
 		auto key(path.generic_string());
 		after_tree_state_unmod[key] = after_info;
@@ -587,7 +587,7 @@ int apply(char *before_tree, char *patch_file)
 	printf("validating tree initial state %s...\n", after_path.generic_string().c_str());
 
 	std::map<std::string, delta_info> before_tree_state;
-	process_tree(before_path, [&](path &path, recursive_directory_iterator &i) {
+	process_tree(before_path, [&](path &path, const directory_entry &i) {
 		before_tree_state[path.generic_string()] = make_delta_info(i);
 	});
 
@@ -642,7 +642,7 @@ int apply(char *before_tree, char *patch_file)
 	printf("validating tree patched state %s...\n", after_path.generic_string().c_str());
 
 	std::map<std::string, delta_info> after_tree_state;
-	process_tree(after_path, [&](path &path, recursive_directory_iterator &i) {
+	process_tree(after_path, [&](path &path, const directory_entry &i) {
 		after_tree_state[path.generic_string()] = make_delta_info(i);
 	});
 
