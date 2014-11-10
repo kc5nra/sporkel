@@ -12,7 +12,7 @@ using namespace boost::filesystem;
 
 struct delta_info
 {
-	std::string hash;
+	unsigned char hash[crypto_generichash_BYTES];
 	file_type type;
 	unsigned long long size;
 	bool deleted;
@@ -79,7 +79,7 @@ CEREAL_CLASS_VERSION(delta_op_toc, 1);
 void process_tree(path &p, std::function<void(path &p, recursive_directory_iterator &i)> f);
 
 void hash_delta_info(const std::string &path, const delta_info &di, crypto_generichash_state &state);
-std::string hash_entry(const directory_entry &i);
+void hash_entry(const directory_entry &i, unsigned char(&hash)[crypto_generichash_BYTES]);
 void hash_entry(const directory_entry &i, crypto_generichash_state &state);
 
 path make_path_relative(path &a_From, path &a_To);

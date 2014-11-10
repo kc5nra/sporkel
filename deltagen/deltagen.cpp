@@ -1,3 +1,4 @@
+#include <cstring>
 #include <string>
 #include <map>
 #include <vector>
@@ -36,14 +37,14 @@ delta_info make_delta_info(const directory_entry &i)
 	di.size = 0;
 	if (is_regular_file(i.status()))
 		di.size = file_size(i.path());
-	di.hash = hash_entry(i);
+	hash_entry(i, di.hash);
 	di.deleted = false;
 
 	return di;
 }
 
 bool operator==(const delta_info &l, const delta_info &r) {
-	return l.type == r.type && l.size == r.size && l.hash == r.hash;
+	return l.type == r.type && l.size == r.size && std::memcmp(l.hash, r.hash, sizeof(l.hash)) == 0;
 }
 
 bool has_option(char **begin, char **end, const std::string &option)
@@ -419,7 +420,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 			b_op_cnt++;
 			toc.ops.emplace_back(delta_op_type::PATCH, i.first, before_info.type);
 
-			path cache_file_path = cache_path / before_info.hash / after_info.hash;
+			path cache_file_path = cache_path / bin2hex(before_info.hash) / bin2hex(after_info.hash);
 			if (!cache_path.empty() && exists(cache_file_path)) {
 				read_cached_diff(cache_file_path, toc.ops.back().patch);
 				continue;

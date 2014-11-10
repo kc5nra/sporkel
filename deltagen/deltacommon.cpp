@@ -33,7 +33,7 @@ void hash_delta_info(const std::string &p, const delta_info &di, crypto_generich
 	crypto_generichash_update(&state, (const unsigned char *) p.c_str(), p.length());
 	crypto_generichash_update(&state, (const unsigned char *) &di.type, sizeof(decltype(di.type)));
 	crypto_generichash_update(&state, (const unsigned char *) &di.size, sizeof(decltype(di.size)));
-	crypto_generichash_update(&state, (const unsigned char *) di.hash.c_str(), di.hash.length());
+	crypto_generichash_update(&state, di.hash, sizeof(di.hash));
 }
 
 void hash_entry(const directory_entry &i, crypto_generichash_state &state)
@@ -83,16 +83,13 @@ void hash_entry(const directory_entry &i, crypto_generichash_state &state)
 	}
 }
 
-std::string hash_entry(const directory_entry &i)
+void hash_entry(const directory_entry &i, unsigned char (&hash)[crypto_generichash_BYTES])
 {
 	crypto_generichash_state state;
-	unsigned char hash[crypto_generichash_BYTES];
-	
+
 	crypto_generichash_init(&state, NULL, 0, sizeof(hash));
 	hash_entry(i, state);
 	crypto_generichash_final(&state, hash, sizeof(hash));
-
-	return bin2hex(hash);
 }
 
 path get_temp_directory() {
