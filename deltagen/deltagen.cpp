@@ -428,10 +428,13 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	});
 
 	auto min_memory_limit = buffer_size + (patch_infos.empty() ? 0 : patch_infos.front().max_mem_usage());
+
+	printf("memory required: %u MB\n", static_cast<unsigned>(min_memory_limit / 1024 / 1024 + 1));
+	if (memory_limit != -1)
+		printf("memory limit: %u MB\n", static_cast<unsigned>(memory_limit / 1024 / 1024));
+
 	if (min_memory_limit > memory_limit) {
-		fprintf(stderr, "warning: memory limit < required memory for largest patch: %u < %u",
-				static_cast<unsigned>(memory_limit / 1024 / 1024),
-				static_cast<unsigned>(min_memory_limit / 1024 / 1024 + 1));
+		fprintf(stderr, "error: memory limit < required memory for largest patch");
 		return 5;
 	}
 
