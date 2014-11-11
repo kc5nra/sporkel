@@ -55,7 +55,7 @@ static bool verbose;
 
 int create(const path &before_path, const path &after_path, const path &patch_path,
 	unsigned int num_threads, unsigned int memory_limit,
-	const boost::optional<path> &cache_path);
+	const boost::optional<path> &cache_path, unsigned int lzma_preset);
 
 int apply(const path &before_path, const path &patch_path);
 int keypair(const path &secret_key_file, const path &public_key_file);
@@ -136,6 +136,7 @@ struct create_command : command {
 			("cache,c", po::value<std::string>(), "location for cache")
 			("threads,t", po::value<unsigned int>()->default_value(std::max(1u, std::thread::hardware_concurrency())), "number of threads to use")
 			("memory,m", po::value<int>()->default_value(-1), "memory limit")
+			("lzma-preset,l", po::value<unsigned int>()->default_value(2), "lzma compression preset")
 			("before", po::value<std::string>()->required(), "before tree (initial tree state)")
 			("after", po::value<std::string>()->required(), "after tree (state to create after applying patch)")
 			("patch", po::value<std::string>()->required(), "path to patch file being created");
@@ -166,7 +167,8 @@ struct create_command : command {
 			vm["patch"].as<std::string>(),
 			vm["threads"].as<unsigned int>(), 
 			vm["memory"].as<int>(), 
-			cache);
+			cache,
+			vm["lzma-preset"].as<unsigned int>());
 	}
 };
 
@@ -463,7 +465,8 @@ struct deferred_patch_info
 };
 
 int create(const path &before_path, const path &after_path, const path &patch_path,
-	unsigned int num_threads, unsigned int memory_limit, const boost::optional<path> &cache_path)
+		unsigned int num_threads, unsigned int memory_limit, const boost::optional<path> &cache_path,
+		unsigned int lzma_preset)
 {
 
 	if (!is_directory(before_path)) {
@@ -688,7 +691,7 @@ int create(const path &before_path, const path &after_path, const path &patch_pa
 
 	std::ofstream ofs(patch_path.native(), std::ios::binary);
 	filtering_ostream filter;
-	filter.push(lzma_compressor({}, 4096));
+	filter.push(lzma_compressor(lzma_params(lzma_preset)), 4096);
 	filter.push(ofs);
 
 	cereal::PortableBinaryOutputArchive archive(filter);
