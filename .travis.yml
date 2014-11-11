@@ -1,0 +1,67 @@
+language: cpp
+
+os:
+ - linux
+ - osx
+
+compiler:
+ - clang
+ - gcc
+
+env:
+ - STDLIB="c++"
+ - STDLIB="stdc++"
+
+matrix:
+  exclude:
+    - compiler: gcc
+      env: STDLIB="c++"
+
+before_install:
+  # g++4.8.1
+  - if [ "$CXX" == "g++" ]; then sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; fi
+
+  # clang 3.5
+  - if [ "$CXX" == "clang++" ]; then sudo apt-add-repository 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise main'; fi
+  - if [ "$CXX" == "clang++" ]; then sudo apt-add-repository 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.5 main'; fi
+  - if [ "$CXX" == "clang++" ]; then sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test; fi
+  - if [ "$CXX" == "clang++" ]; then wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -; fi
+
+  - sudo apt-get update -qq
+
+install:
+  # g++4.8.1
+  - sudo apt-get install -qq gcc-4.8 g++-4.8
+
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8"; fi
+
+  # clang 3.5
+  - if [ "$CXX" == "clang++" ]; then CLANGING=1; fi
+  - if [ "$CLANGING" ]; then sudo apt-get install -qq clang-3.5; fi
+  - if [ "$CLANGING" ]; then export CC="clang-3.5"; fi
+  - if [ "$CLANGING" ]; then export CXX="clang++-3.5"; fi
+  - if [ "$CLANGING" ]; then pushd .; fi
+  - if [ "$CLANGING" ]; then svn co --quiet http://llvm.org/svn/llvm-project/libcxx/trunk libcxx; fi
+  - if [ "$CLANGING" ]; then cd libcxx; fi
+  - if [ "$CLANGING" ]; then mkdir build; fi
+  - if [ "$CLANGING" ]; then cd build; fi
+  - > 
+    if [ "$CLANGING" ]; then
+    cmake 
+    -DLIBCXX_CXX_ABI=libsupc++
+    -DLIBCXX_LIBSUPCXX_INCLUDE_PATHS="/usr/include/c++/4.8/;/usr/include/x86_64-linux-gnu/c++/4.8"
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=/usr ..
+    ; fi
+  - if [ "$CLANGING" ]; then popd; fi
+  - if [ "$CLANGING" ]; then export CXX_LINK_FLAGS="-stdlib=lib$STDLIB -l$STDLIB"; fi
+
+before_script:
+  - echo "Compiling with $CXX using $STDLIB"
+  - $CC --version
+  - $CXX --version
+  - mkdir build
+  - cd build
+  - cmake -DBUILD_LZMA=1 ..
+
+script: make
