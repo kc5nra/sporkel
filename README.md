@@ -1,7 +1,9 @@
-sporkel
+sporkel [![Build Status](https://travis-ci.org/kc5nra/sporkel.svg?branch=travis-ci)](https://travis-ci.org/kc5nra/sporkel)
 =======
 
 Sporkel!
+
+
 
            _,,,,,,,_                                                    
         ,s*``        `*e,                                                
