@@ -17,6 +17,10 @@ Sporkel!
                                                                          
                                                                          
 
+License
+-------
+ISC (http://opensource.org/licenses/ISC)
+
 Dependency licenses:  
 
 |License Name | License URL                                 |
