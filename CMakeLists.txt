@@ -7,6 +7,7 @@ include(CheckCCompilerFlag)
 
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+CHECK_CXX_COMPILER_FLAG("-stdlib=libc++" COMPILER_SUPPORTS_LIBCXX)
 CHECK_C_COMPILER_FLAG("-std=c99" COMPILER_SUPPORTS_C99)
 
 if(COMPILER_SUPPORTS_CXX11)
@@ -17,6 +18,10 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     # MSVC should support necessary C++11 features 
 else()
 		message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+endif()
+
+if (COMPILER_SUPPORTS_LIBCXX AND NOT DEFINED ENV{TRAVIS})
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 
 if(COMPILER_SUPPORTS_C99)
