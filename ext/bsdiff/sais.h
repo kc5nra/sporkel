@@ -38,7 +38,7 @@ extern "C" {
 /* find the suffix array SA of T[0..n-1]
    use a working space (excluding T and SA) of at most 2n+O(lg n) */
 int
-sais(const unsigned char *T, off_t *SA, int n);
+sporkel_sais(const unsigned char *T, off_t *SA, int n);
 
 /* find the suffix array SA of T[0..n-1] in {0..k-1}^n
    use a working space (excluding T and SA) of at most MAX(4k,2n) */

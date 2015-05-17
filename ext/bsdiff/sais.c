@@ -491,7 +491,7 @@ sais_main(const void *T, sais_index_type *SA,
 /*---------------------------------------------------------------------------*/
 
 int
-sais(const unsigned char *T, off_t *SA, int n) {
+sporkel_sais(const unsigned char *T, off_t *SA, int n) {
   if((T == NULL) || (SA == NULL) || (n < 0)) { return -1; }
   if(n <= 1) { if(n == 1) { SA[0] = 0; } return 0; }
   return sais_main(T, SA, 0, n, UCHAR_SIZE, sizeof(unsigned char), 0);

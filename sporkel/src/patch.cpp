@@ -377,9 +377,9 @@ static bool sporkel_patch_apply_internal(const fs::path &before_path, std::istre
 
 			sporkel_util::get_file_contents(p, before_size, before_file);
 			archive(delta);
-			auto after_size = bspatch_newsize(delta.data(), delta.size());
+			auto after_size = sporkel_bspatch_newsize(delta.data(), delta.size());
 			after_file.resize(after_size);
-			int res = bspatch(before_file.data(), before_file.size(), delta.data(), delta.size(), after_file.data(), after_file.size());
+			int res = sporkel_bspatch(before_file.data(), before_file.size(), delta.data(), delta.size(), after_file.data(), after_file.size());
 			if (res != 0) {
 				spkloge(cb, "failed patching " << p.generic_string());
 			}
@@ -573,7 +573,7 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 				continue;
 			}
 
-			size_t max_size = bsdiff_patchsize_max(before_info.size, after_info.size);
+			size_t max_size = sporkel_bsdiff_patchsize_max(before_info.size, after_info.size);
 			patch_infos.emplace_back(before_info.size, after_info.size, max_size,
 				before_path / i.first, after_path / i.first, &toc.ops.back().patch);
 
@@ -651,7 +651,7 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 				sporkel_util::get_file_contents(work_item->before_path, work_item->before_size, p1_data);
 				sporkel_util::get_file_contents(work_item->after_path, work_item->after_size, p2_data);
 
-				int actual_size = bsdiff(p1_data.data(), work_item->before_size,
+				int actual_size = sporkel_bsdiff(p1_data.data(), work_item->before_size,
 					p2_data.data(), work_item->after_size, work_item->patch->data(),
 					work_item->max_patch_size);
 				work_item->patch->resize(actual_size);

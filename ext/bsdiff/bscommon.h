@@ -52,7 +52,7 @@ typedef uint8_t u_char;
  * should be used to allocate a buffer big enough for `bsdiff` to store
  * its output in.
  */
-off_t bsdiff_patchsize_max(off_t oldsize, off_t newsize);
+off_t sporkel_bsdiff_patchsize_max(off_t oldsize, off_t newsize);
 
 /*-
  * Create a binary patch from the buffers pointed to by oldp and newp (with
@@ -70,7 +70,7 @@ off_t bsdiff_patchsize_max(off_t oldsize, off_t newsize);
  * of memory, where n is the size of the new file and m is the size of the old
  * file. It runs in O((n+m) log n) time.
  */
-int bsdiff(u_char* oldp, off_t oldsize,
+int sporkel_bsdiff(u_char* oldp, off_t oldsize,
            u_char* newp, off_t newsize,
            u_char* patch, off_t patchsize);
 
@@ -78,14 +78,14 @@ int bsdiff(u_char* oldp, off_t oldsize,
  * Determine if the buffer pointed to by `patch` of a given `size` is
  * a valid patch.
  */
-bool bspatch_valid_header(u_char* patch, ssize_t patchsz);
+bool sporkel_bspatch_valid_header(u_char* patch, ssize_t patchsz);
 
 /*-
  * Determine the size of the new file that will result from applying
  * a patch. Returns -1 if the patch header is invalid, otherwise returns
  * the size of the new file.
  */
-ssize_t bspatch_newsize(u_char* patch, ssize_t patchsize);
+ssize_t sporkel_bspatch_newsize(u_char* patch, ssize_t patchsize);
 
 /*-
  * Apply a patch stored in 'patch' to 'oldp', result in 'newp', and store the
@@ -105,7 +105,7 @@ ssize_t bspatch_newsize(u_char* patch, ssize_t patchsize);
  * old file and m is the size of the new file. It does no allocations.
  * It runs in O(n+m) time.
  */
-int bspatch(u_char* oldp,  ssize_t oldsz,
+int sporkel_bspatch(u_char* oldp,  ssize_t oldsz,
             u_char* patch, ssize_t patchsz,
             u_char* newp,  ssize_t newsz);
 

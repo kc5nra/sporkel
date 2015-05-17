@@ -70,7 +70,7 @@ offtin(u_char *buf)
 }
 
 bool
-bspatch_valid_header(u_char* patch, ssize_t patchsz)
+sporkel_bspatch_valid_header(u_char* patch, ssize_t patchsz)
 {
   ssize_t newsize, ctrllen, datalen;
 
@@ -89,14 +89,14 @@ bspatch_valid_header(u_char* patch, ssize_t patchsz)
 }
 
 ssize_t
-bspatch_newsize(u_char* patch, ssize_t patchsz)
+sporkel_bspatch_newsize(u_char* patch, ssize_t patchsz)
 {
-  if (!bspatch_valid_header(patch, patchsz)) return -1;
+  if (!sporkel_bspatch_valid_header(patch, patchsz)) return -1;
   return offtin(patch+24);
 }
 
 int
-bspatch(u_char* oldp,  ssize_t oldsz,
+sporkel_bspatch(u_char* oldp,  ssize_t oldsz,
         u_char* patch, ssize_t patchsz,
         u_char* newp,  ssize_t newsz)
 {
@@ -109,7 +109,7 @@ bspatch(u_char* oldp,  ssize_t oldsz,
   /* Sanity checks */
   if (oldp == NULL || patch == NULL || newp == NULL) return -1;
   if (oldsz < 0    || patchsz < 0   || newsz < 0)    return -1;
-  if (!bspatch_valid_header(patch, patchsz)) return -2;
+  if (!sporkel_bspatch_valid_header(patch, patchsz)) return -2;
 
   /* Read lengths from patch header */
   ctrllen=offtin(patch+8);

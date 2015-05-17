@@ -214,12 +214,12 @@ offtout(off_t x,u_char *buf)
 }
 
 off_t
-bsdiff_patchsize_max(off_t newsize, off_t oldsize)
+sporkel_bsdiff_patchsize_max(off_t newsize, off_t oldsize)
 {
   return newsize+oldsize+BSDIFF_PATCH_SLOP_SIZE;
 }
 
-int bsdiff(u_char* oldp, off_t oldsize,
+int sporkel_bsdiff(u_char* oldp, off_t oldsize,
            u_char* newp, off_t newsize,
            u_char* patch, off_t patchsz)
 {
@@ -241,7 +241,7 @@ int bsdiff(u_char* oldp, off_t oldsize,
   /* Sanity checks */
   if (oldp == NULL || newp == NULL || patch == NULL) return -1;
   if (oldsize < 0 || newsize < 0 || patchsz < 0)     return -1;
-  if (bsdiff_patchsize_max(oldsize, newsize) > patchsz) return -1;
+  if (sporkel_bsdiff_patchsize_max(oldsize, newsize) > patchsz) return -1;
 
   /* Allocate oldsize+1 bytes instead of oldsize bytes to ensure
      that we never try to malloc(0) and get a NULL pointer */
@@ -249,7 +249,7 @@ int bsdiff(u_char* oldp, off_t oldsize,
      ((V=malloc((oldsize+1)*sizeof(off_t)))==NULL)*/) return -1;
 
   I[0] = oldsize;
-  sais(oldp, I + 1, oldsize);
+  sporkel_sais(oldp, I + 1, oldsize);
   //qsufsort(I,V,oldp,oldsize);
 
   //free(V);
