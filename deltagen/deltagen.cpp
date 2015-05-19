@@ -26,6 +26,7 @@ int create(const path &before_path, const path &after_path, const path &patch_pa
 int apply(const path &before_path, const path &patch_path, bool keep_backup);
 int keypair(const path &secret_key_file, const path &public_key_file);
 int sign(const path &secret_key_path, const path &file_path);
+int verify(const path &public_key_path, const path &file_path, const std::string &signature);
 
 int remove_positional(po::options_description &op_desc, int pos_cnt)
 {
@@ -208,6 +209,43 @@ struct sign_command : command {
 	}
 };
 
+struct verify_command : command {
+
+	verify_command() {
+		name = "verify";
+		header = "verify <public_key_file> <file> <signature>";
+	}
+
+	int options(po::options_description &desc)
+	{
+		desc.add_options()
+			("public_key", po::value<std::string>()->required(), "public key file")
+			("file", po::value<std::string>()->required(), "signed file to verify")
+			("signature", po::value<std::string>()->required(), "signature");
+
+		return 3;
+	}
+
+	int handle(std::vector<std::string> &arguments, po::variables_map &vm) {
+		po::options_description desc;
+		options(desc);
+
+		po::positional_options_description pos;
+
+		pos.add("public_key", 1);
+		pos.add("file", 1);
+		pos.add("signature", 1);
+
+		po::store(po::command_line_parser(arguments).options(desc).positional(pos).run(), vm);
+		po::notify(vm);
+
+		return verify(
+			vm["public_key"].as<std::string>(),
+			vm["file"].as<std::string>(),
+			vm["signature"].as<std::string>());
+	}
+};
+
 int show_help(int result, std::string &bn, po::options_description &desc, std::map<std::string, command*> commands) {
 
 	remove_positional(desc, 2);
@@ -238,12 +276,14 @@ int main(int argc, const char *argv[])
 	create_command create_cmd;
 	keypair_command keypair_cmd;
 	sign_command sign_cmd;
+	verify_command verify_cmd;
 
 	std::map<std::string, command*> commands = {
 			{ apply_cmd.name, &apply_cmd },
 			{ create_cmd.name, &create_cmd },
 			{ keypair_cmd.name, &keypair_cmd },
 			{ sign_cmd.name, &sign_cmd },
+			{ verify_cmd.name, &verify_cmd },
 	};
 	
 	int result = 0;
@@ -296,6 +336,42 @@ int main(int argc, const char *argv[])
 	}
 
 	return show_help(result, bn, op_desc, commands);
+}
+
+int verify(const path &public_key_path, const path &file_path, const std::string &signature)
+{
+	if (!exists(public_key_path)) {
+		std::cerr << "error: <public_key_file> '" << public_key_path.generic_string() << "' does not exist\n";
+		return 2;
+	}
+
+	if (!exists(file_path)) {
+		std::cerr << "error: <file> '" << file_path.generic_string() << "' does not exist\n";
+		return 2;
+	}
+
+	std::vector<char> public_key_bytes;
+	sporkel_util::get_file_contents(public_key_path, file_size(public_key_path), public_key_bytes);
+	sporkel::public_key_ptr pk;
+	pk.reset(sporkel_public_key_from_hex(public_key_bytes.data(), public_key_bytes.size()));
+	if (!pk)
+		return 2;
+
+	sporkel::signature_ptr sig;
+	sig.reset(sporkel_signature_from_hex(signature.data(), signature.length()));
+	if (!sig)
+		return 2;
+
+	std::vector<uint8_t> data_bytes;
+	sporkel_util::get_file_contents(file_path, file_size(file_path), data_bytes);
+
+	if (!sporkel_verify(pk, sig, data_bytes.data(), data_bytes.size())) {
+		std::cerr << "'" << file_path.generic_string() << "' verification failed\n";
+		return 2;
+	}
+
+	std::cout << '\'' << file_path.generic_string() << "' verified\n";
+	return 0;
 }
 
 int sign(const path &secret_key_path, const path &file_path)
