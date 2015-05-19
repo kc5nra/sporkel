@@ -28,6 +28,7 @@
 #include "deltagen.h"
 #include "deltacommon.h"
 #include "../util/scopeguard.hpp"
+#include "../util/util.hpp"
 #include <bscommon.h>
 
 using namespace boost::iostreams;
@@ -341,17 +342,6 @@ std::string get_tree_hash(const std::map<std::string, delta_info> &tree) {
 	return bin2hex(hash);
 }
 
-void get_file_contents(const path &p, size_t size, std::vector<uint8_t> &buf) {
-	std::ifstream f(p.native(), std::ios::binary);
-	buf.resize(size);
-	f.read(reinterpret_cast<char*>(buf.data()), size);
-}
-
-void set_file_contents(const path &p, uint8_t *data, size_t len) {
-	std::ofstream f(p.native(), std::ios::binary);
-	f.write((char *)data, len);
-}
-
 void write_cached_diff(const path &p, const std::vector<uint8_t> &data)
 {
 	path tmp = unique_path();
@@ -394,14 +384,14 @@ int sign(const path &secret_key_path, const path &file_path)
 	}
 
 	std::vector<uint8_t> secret_key_bytes;
-	get_file_contents(secret_key_path, file_size(secret_key_path), secret_key_bytes);
+	sporkel_util::get_file_contents(secret_key_path, file_size(secret_key_path), secret_key_bytes);
 	std::string secret_key((char *) secret_key_bytes.data());
 
 	secret_key_bytes.resize(0);
 	hex2bin(secret_key, secret_key_bytes);
 
 	std::vector<uint8_t> file_contents;
-	get_file_contents(file_path, file_size(file_path), file_contents);
+	sporkel_util::get_file_contents(file_path, file_size(file_path), file_contents);
 
 	unsigned char sig[crypto_sign_BYTES];
 	crypto_sign_detached(sig, NULL, file_contents.data(), file_contents.size(), secret_key_bytes.data());
@@ -433,8 +423,8 @@ int keypair(const path &secret_key_path, const path &public_key_path)
 	std::string secret_key(bin2hex(sk));
 	std::string public_key(bin2hex(pk));
 
-	set_file_contents(secret_key_path, (uint8_t *) secret_key.c_str(), secret_key.length());
-	set_file_contents(public_key_path, (uint8_t *) public_key.c_str(), public_key.length());
+	sporkel_util::set_file_contents(secret_key_path, (uint8_t *) secret_key.c_str(), secret_key.length());
+	sporkel_util::set_file_contents(public_key_path, (uint8_t *) public_key.c_str(), public_key.length());
 
 	return 0;
 }
@@ -665,8 +655,10 @@ int create(const path &before_path, const path &after_path, const path &patch_pa
 					continue;
 				}
 
-				get_file_contents(work_item->before_path, work_item->before_size, p1_data);
-				get_file_contents(work_item->after_path, work_item->after_size, p2_data);
+				sporkel_util::get_file_contents(work_item->before_path,
+						work_item->before_size, p1_data);
+				sporkel_util::get_file_contents(work_item->after_path,
+						work_item->after_size, p2_data);
 
 				int actual_size = bsdiff(p1_data.data(), work_item->before_size,
 					p2_data.data(), work_item->after_size, work_item->patch->data(),
@@ -708,7 +700,7 @@ int create(const path &before_path, const path &after_path, const path &patch_pa
 		{
 			path p(after_path / path(i.path));
 			size_t s = file_size(p);
-			get_file_contents(p, s, delta);
+			sporkel_util::get_file_contents(p, s, delta);
 			archive(delta);
 			break;
 		}
@@ -784,14 +776,14 @@ int apply(const path &before_path, const path &patch_path)
 			}
 			// symlink handling here
 			archive(delta);
-			set_file_contents(p, delta.data(), delta.size());
+			sporkel_util::set_file_contents(p, delta.data(), delta.size());
 			continue;
 		}
 		case delta_op_type::PATCH: {
 			path p = after_path / i.path;
 			auto before_size = file_size(p);
 
-			get_file_contents(p, before_size, before_file);
+			sporkel_util::get_file_contents(p, before_size, before_file);
 			archive(delta);
 			auto after_size = bspatch_newsize(delta.data(), delta.size());
 			after_file.resize(after_size);
@@ -799,7 +791,7 @@ int apply(const path &before_path, const path &patch_path)
 			if (res != 0) {
 				fprintf(stderr, "failed patching %s\n", p.generic_string().c_str());
 			}
-			set_file_contents(p, after_file.data(), after_file.size());
+			sporkel_util::set_file_contents(p, after_file.data(), after_file.size());
 			continue;
 		}
 		case delta_op_type::DELETE:
