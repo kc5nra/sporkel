@@ -12,7 +12,7 @@ if(LIBLZMA_CONFIG)
 		-DHAVE_CONFIG_H)
 endif()
 
-include_directories(
+include_directories(SYSTEM
 	${BOOST_INCLUDE_DIRS}
 	${BSDIFF_INCLUDE_DIRS}
 	${CEREAL_INCLUDE_DIRS}
