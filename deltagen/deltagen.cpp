@@ -27,7 +27,7 @@
 
 #include "deltagen.h"
 #include "deltacommon.h"
-#include "scopeguard.h"
+#include "../util/scopeguard.hpp"
 #include <bscommon.h>
 
 using namespace boost::iostreams;
