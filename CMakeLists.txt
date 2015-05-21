@@ -33,6 +33,7 @@ else()
 endif()
 
 add_subdirectory(ext)
+add_subdirectory(sporkel)
 add_subdirectory(deltagen)
 
 
