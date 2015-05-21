@@ -731,7 +731,7 @@ int apply(const path &before_path, const path &patch_path)
 
 	printf("copying %s to %s...\n", before_path.generic_string().c_str(), after_path.generic_string().c_str());
 
-	copy_directory_recursive(before_path, after_path);
+	sporkel_util::copy_directory_recursive(before_path, after_path);
 	DEFER{ remove_all(after_path); };
 
 	std::ifstream ifs(patch_path.native(), std::ios::binary);

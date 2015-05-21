@@ -8,6 +8,8 @@
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
 
+#include "../../util/util.hpp"
+
 using namespace boost::filesystem;
 
 struct delta_info
@@ -82,11 +84,7 @@ void hash_delta_info(const std::string &path, const delta_info &di, crypto_gener
 void hash_entry(const directory_entry &i, unsigned char(&hash)[crypto_generichash_BYTES]);
 void hash_entry(const directory_entry &i, crypto_generichash_state &state);
 
-path make_path_relative(path &a_From, path &a_To);
-
 path get_temp_directory();
-path make_path_relative(path a_From, path a_To);
-bool copy_directory_recursive(const path &from, const path &to);
 
 template <typename Func>
 void process_tree(const path &p, Func &&f) //std::function<void(path &path, recursive_directory_iterator &i)> f)
@@ -98,7 +96,7 @@ void process_tree(const path &p, Func &&f) //std::function<void(path &path, recu
 			continue;
 		}
 
-		path rel_path(make_path_relative(p, i->path()));
+		path rel_path(sporkel_util::make_path_relative(p, i->path()));
 		if (!rel_path.empty())
 			f(rel_path, *i);
 	}
