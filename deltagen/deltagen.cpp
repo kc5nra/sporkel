@@ -9,7 +9,10 @@
 #include <thread>
 #include <numeric>
 
+#include <boost/optional.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
+#include <boost/program_options.hpp>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -28,6 +31,7 @@
 #include <bscommon.h>
 
 using namespace boost::iostreams;
+namespace po = boost::program_options;
 
 delta_info make_delta_info(const directory_entry &i)
 {
@@ -47,62 +51,281 @@ bool operator==(const delta_info &l, const delta_info &r) {
 	return l.type == r.type && l.size == r.size && std::memcmp(l.hash, r.hash, sizeof(l.hash)) == 0;
 }
 
-bool has_option(char **begin, char **end, const std::string &option)
+static bool verbose;
+
+int create(const path &before_path, const path &after_path, const path &patch_path,
+	unsigned int num_threads, unsigned int memory_limit,
+	const boost::optional<path> &cache_path);
+
+int apply(const path &before_path, const path &patch_path);
+int keypair(const path &secret_key_file, const path &public_key_file);
+int sign(const path &secret_key_path, const path &file_path);
+
+int remove_positional(po::options_description &op_desc, int pos_cnt)
 {
-	return std::find(begin, end, option) != end;
+	using namespace std;
+	using options_t = remove_const<remove_reference<decltype(op_desc.options())>::type>::type;
+	// remove last two arguments from help
+	auto &ov = const_cast<options_t&>(op_desc.options());
+	ov.resize(ov.size() - pos_cnt);
+	return ov.size();
 }
 
-#define HAS_OPTION(x) (argc >= 2 ? std::string(x) == argv[1] : false)
-#define OPTION(x) (x < argc ? argv[x] : NULL)
+struct command {
+	std::string name;
+	std::string header;
 
-int create(char *before_tree, char *after_tree, char *patch_file,
-		char *threads, char *mem_limit, char *cache_dir);
-int apply(char *tree, char *patch_file);
-int keypair(char *private_key_file, char *public_key_file);
-int sign(char *private_key_file, char *file);
-
-int show_help(int result, std::string &bn) {
-	if (result == 1) {
-		printf("usage: %s <command> <args>\n\n", bn.c_str());
-		printf("    help\n");
-		printf("    create <before_tree> <after_tree> <patch_file> [threads [mem_limit [cache_dir]]]\n");
-		printf("    apply <tree> <patch_file>\n");
-		printf("    keypair <private_key_file> <public_key_file>\n");
-		printf("    sign <private_key_file> <file>\n\n");
+	virtual int options(po::options_description &desc) = 0;
+	virtual int handle(std::vector<std::string> &arguments, po::variables_map &vm) = 0;
+	
+	virtual void print_help() {
+		po::options_description desc;
+		int pos = options(desc);
+		int rem = remove_positional(desc, pos);
+		if (rem) { // Are there any non-positional options?
+			std::cerr << name << ":" << std::endl;
+			std::cerr << desc << std::endl;
+		}
 	}
+};
+
+struct apply_command : command {
+
+	apply_command() {
+		name = "apply";
+		header = "apply <before_tree> <patch_file>";
+	}
+
+	int options(po::options_description &desc)
+	{
+		desc.add_options()
+			("before", po::value<std::string>()->required(), "before tree")
+			("patch", po::value<std::string>()->required(), "path to patch file");
+
+		return 2;
+	}
+
+	int handle(std::vector<std::string> &arguments, po::variables_map &vm) {
+		po::options_description desc;
+		options(desc);
+
+		po::positional_options_description pos;
+
+		pos.add("before", 1);
+		pos.add("patch", 1);
+
+		po::store(po::command_line_parser(arguments).options(desc).positional(pos).run(), vm);
+		po::notify(vm);
+
+		return apply(
+			vm["before"].as<std::string>(),
+			vm["patch"].as<std::string>());
+	}
+};
+
+struct create_command : command {
+
+	create_command() {
+		name = "create";
+		header = "create <before_tree> <after_tree> <patch_file>";
+	}
+
+	int options(po::options_description &desc)
+	{
+		desc.add_options()
+			("cache,c", po::value<std::string>(), "location for cache")
+			("threads,t", po::value<unsigned int>()->default_value(std::max(1u, std::thread::hardware_concurrency())), "number of threads to use")
+			("memory,m", po::value<int>()->default_value(-1), "memory limit")
+			("before", po::value<std::string>()->required(), "before tree (initial tree state)")
+			("after", po::value<std::string>()->required(), "after tree (state to create after applying patch)")
+			("patch", po::value<std::string>()->required(), "path to patch file being created");
+
+		return 3;
+	}
+
+	int handle(std::vector<std::string> &arguments, po::variables_map &vm) {
+		po::options_description desc;
+		options(desc);
+		
+		po::positional_options_description pos;
+		
+		pos.add("before", 1);
+		pos.add("after", 1);
+		pos.add("patch", 1);
+
+		po::store(po::command_line_parser(arguments).options(desc).positional(pos).run(), vm);
+		po::notify(vm);
+
+		boost::optional<path> cache;
+		if (vm.count("cache"))
+			cache = vm["cache"].as<std::string>();
+
+		return create(
+			vm["before"].as<std::string>(),
+			vm["after"].as<std::string>(),
+			vm["patch"].as<std::string>(),
+			vm["threads"].as<unsigned int>(), 
+			vm["memory"].as<int>(), 
+			cache);
+	}
+};
+
+struct keypair_command : command {
+
+	keypair_command() {
+		name = "keypair";
+		header = "keypair <secret_key_file> <public_key_file>";
+	}
+
+	int options(po::options_description &desc)
+	{
+		desc.add_options()
+			("secret_key", po::value<std::string>()->required(), "secret key file")
+			("public_key", po::value<std::string>()->required(), "public key file");
+
+		return 2;
+	}
+
+	int handle(std::vector<std::string> &arguments, po::variables_map &vm) {
+		po::options_description desc;
+		options(desc);
+
+		po::positional_options_description pos;
+
+		pos.add("secret_key", 1);
+		pos.add("public_key", 1);
+
+		po::store(po::command_line_parser(arguments).options(desc).positional(pos).run(), vm);
+		po::notify(vm);
+
+		return keypair(
+			vm["secret_key"].as<std::string>(),
+			vm["public_key"].as<std::string>());
+	}
+};
+
+struct sign_command : command {
+
+	sign_command() {
+		name = "sign";
+		header = "sign <secret_key_file> <file>";
+	}
+
+	int options(po::options_description &desc)
+	{
+		desc.add_options()
+			("secret_key", po::value<std::string>()->required(), "secret key file")
+			("file", po::value<std::string>()->required(), "file to sign");
+
+		return 2;
+	}
+
+	int handle(std::vector<std::string> &arguments, po::variables_map &vm) {
+		po::options_description desc;
+		options(desc);
+
+		po::positional_options_description pos;
+
+		pos.add("secret_key", 1);
+		pos.add("file", 1);
+
+		po::store(po::command_line_parser(arguments).options(desc).positional(pos).run(), vm);
+		po::notify(vm);
+
+		return sign(
+			vm["secret_key"].as<std::string>(),
+			vm["file"].as<std::string>());
+	}
+};
+
+int show_help(int result, std::string &bn, po::options_description &desc, std::map<std::string, command*> commands) {
+
+	remove_positional(desc, 2);
+
+	if (result == 1) {
+		std::cerr << "usage: " << bn << " <command> <args>" << std::endl;
+		std::cerr << "Commands:" << std::endl;
+		std::cerr << "  help" << std::endl;
+		for (auto &i : commands) {
+			std::cerr << "  " << i.second->header << std::endl;
+		}
+		std::cerr << std::endl;
+		std::cerr << desc << std::endl;
+		for (auto &i : commands) {
+			i.second->print_help();
+		}
+	}
+
 	return result;
 }
 
-int main(int argc, char **argv)
+int main(int argc, const char *argv[])
 {
 	
 	std::string bn = basename(path(argv[0]));
 
-	if (HAS_OPTION("help")) {
-		return show_help(1, bn);
-	}
+	apply_command apply_cmd;
+	create_command create_cmd;
+	keypair_command keypair_cmd;
+	sign_command sign_cmd;
 
+	std::map<std::string, command*> commands = {
+			{ apply_cmd.name, &apply_cmd },
+			{ create_cmd.name, &create_cmd },
+			{ keypair_cmd.name, &keypair_cmd },
+			{ sign_cmd.name, &sign_cmd },
+	};
+	
 	int result = 0;
 
-	bool is_create = HAS_OPTION("create");
-	bool is_apply = HAS_OPTION("apply");
-	bool is_keypair = HAS_OPTION("keypair");
-	bool is_sign = HAS_OPTION("sign");
+	po::options_description op_desc("Options");
+	op_desc.add_options()
+		("verbose,v", po::bool_switch()->default_value(false), "enable verbose execution")
+		("command", po::value<std::string>()->default_value("help"), "command to execute")
+		("arguments", po::value<std::vector<std::string> >(), "arguments for command");
 
-	if (is_create)
-		result = create(OPTION(2), OPTION(3), OPTION(4), OPTION(5), OPTION(6), OPTION(7));
-	else if (is_apply)
-		result = apply(OPTION(2), OPTION(3));
-	else if (is_keypair)
-		result = keypair(OPTION(2), OPTION(3));
-	else if (is_sign)
-		result = sign(OPTION(2), OPTION(3));
-	else {
-		fprintf(stderr, "error: command must be specified\n");
+
+	po::positional_options_description pos_desc;
+	pos_desc.add("command", 1);
+	pos_desc.add("arguments", -1);
+
+	po::variables_map vm;
+	
+	try {
+		auto p = po::command_line_parser(argc, argv)
+			.options(op_desc)
+			.positional(pos_desc)
+			.allow_unregistered()
+			.run();
+
+		po::store(p, vm);
+		po::notify(vm);
+
+		std::string cmd_string = vm["command"].as<std::string>();
+
+		if (cmd_string == "help") {
+			return show_help(1, bn, op_desc, commands);
+		}
+
+		auto cmd = commands.find(cmd_string);
+		if (cmd == end(commands)) {
+			throw po::invalid_option_value(cmd_string);
+		}
+
+		verbose = vm["verbose"].as<bool>();
+
+		std::vector<std::string> args = po::collect_unrecognized(p.options, po::include_positional);
+		args.erase(args.begin());
+
+		result = cmd->second->handle(args, vm);
+		
+	}
+	catch (po::error &e) {
+		std::cerr << "error: " << e.what() << std::endl << std::endl;
 		result = 1;
 	}
 
-	return show_help(result, bn);
+	return show_help(result, bn, op_desc, commands);
 }
 
 std::string get_tree_hash(const std::map<std::string, delta_info> &tree) {
@@ -116,13 +339,13 @@ std::string get_tree_hash(const std::map<std::string, delta_info> &tree) {
 	return bin2hex(hash);
 }
 
-void get_file_contents(path &p, size_t size, std::vector<uint8_t> &buf) {
+void get_file_contents(const path &p, size_t size, std::vector<uint8_t> &buf) {
 	std::ifstream f(p.native(), std::ios::binary);
 	buf.resize(size);
 	f.read(reinterpret_cast<char*>(buf.data()), size);
 }
 
-void set_file_contents(path &p, uint8_t *data, size_t len) {
+void set_file_contents(const path &p, uint8_t *data, size_t len) {
 	std::ofstream f(p.native(), std::ios::binary);
 	f.write((char *)data, len);
 }
@@ -156,43 +379,30 @@ void read_cached_diff(const path &p, std::vector<uint8_t> &data)
 	archive(data);
 }
 
-int sign(char *private_key_file, char *file)
+int sign(const path &secret_key_path, const path &file_path)
 {
-	if (!private_key_file) {
-		fprintf(stderr, "error: <private_key_file> missing\n");
-		return 1;
-	}
-
-	if (!file) {
-		fprintf(stderr, "error: <file> missing\n");
-		return 1;
-	}
-
-	path private_key_path(private_key_file);
-	path file_path(file);
-
-	if (!exists(private_key_path)) {
-		fprintf(stderr, "error: <private_key_path> '%s' does not exist\n", private_key_path.generic_string().c_str());
+	if (!exists(secret_key_path)) {
+		std::cerr << "error: <secret_key_file> '" << secret_key_path.generic_string() << "' does not exist" << std::endl;
 		return 2;
 	}
 
 	if (!exists(file_path)) {
-		fprintf(stderr, "error: <file> '%s' does not exist\n", file_path.generic_string().c_str());
+		std::cerr << "error: <file> '" << file_path.generic_string() << "' does not exist" << std::endl;
 		return 2;
 	}
 
-	std::vector<uint8_t> private_key_bytes;
-	get_file_contents(private_key_path, file_size(private_key_path), private_key_bytes);
-	std::string private_key((char *) private_key_bytes.data());
+	std::vector<uint8_t> secret_key_bytes;
+	get_file_contents(secret_key_path, file_size(secret_key_path), secret_key_bytes);
+	std::string secret_key((char *) secret_key_bytes.data());
 
-	private_key_bytes.resize(0);
-	hex2bin(private_key, private_key_bytes);
+	secret_key_bytes.resize(0);
+	hex2bin(secret_key, secret_key_bytes);
 
 	std::vector<uint8_t> file_contents;
 	get_file_contents(file_path, file_size(file_path), file_contents);
 
 	unsigned char sig[crypto_sign_BYTES];
-	crypto_sign_detached(sig, NULL, file_contents.data(), file_contents.size(), private_key_bytes.data());
+	crypto_sign_detached(sig, NULL, file_contents.data(), file_contents.size(), secret_key_bytes.data());
 
 	std::string signature(bin2hex(sig));
 	printf("%s\n", signature.c_str());
@@ -200,42 +410,29 @@ int sign(char *private_key_file, char *file)
 	return 0;
 }
 
-int keypair(char *private_key_file, char *public_key_file)
+int keypair(const path &secret_key_path, const path &public_key_path)
 {
-	if (!private_key_file) {
-		fprintf(stderr, "error: <private_key_file> missing\n");
-		return 1;
-	}
-
-	if (!public_key_file) {
-		fprintf(stderr, "error: <public_key_file> missing\n");
-		return 1;
-	}
-
-	path private_key_path(private_key_file);
-	path public_key_path(public_key_file);
-
-	if (exists(private_key_path)) {
-		fprintf(stderr, "error: <private_key_path> '%s' already exists\n", private_key_path.generic_string().c_str());
+	if (exists(secret_key_path)) {
+		std::cerr << "error: <secret_key_path> '" << secret_key_path.generic_string() << "' already exists" << std::endl;
 		return 2;
 	}
 
 	if (exists(public_key_path)) {
-		fprintf(stderr, "error: <public_key_path> '%s' already exists\n", public_key_path.generic_string().c_str());
+		std::cerr << "error: <public_key_path> '" << public_key_path.generic_string() << "' already exists" << std::endl;
 		return 2;
 	}
 
 	unsigned char pk[crypto_sign_PUBLICKEYBYTES];
 	unsigned char sk[crypto_sign_SECRETKEYBYTES];
 
-	printf("generating public and private key...");
+	printf("generating public and secret key...");
 	crypto_sign_keypair(pk, sk);
 
-	std::string private_key(bin2hex(sk));
+	std::string secret_key(bin2hex(sk));
 	std::string public_key(bin2hex(pk));
 
-	set_file_contents(private_key_path, (uint8_t *)private_key.c_str(), private_key.length());
-	set_file_contents(public_key_path, (uint8_t *)public_key.c_str(), public_key.length());
+	set_file_contents(secret_key_path, (uint8_t *) secret_key.c_str(), secret_key.length());
+	set_file_contents(public_key_path, (uint8_t *) public_key.c_str(), public_key.length());
 
 	return 0;
 }
@@ -265,67 +462,31 @@ struct deferred_patch_info
 	}
 };
 
-template <typename T>
-static inline T parse_val(char *string, T def)
+int create(const path &before_path, const path &after_path, const path &patch_path,
+	unsigned int num_threads, unsigned int memory_limit, const boost::optional<path> &cache_path)
 {
-	try
-	{
-		return string ? std::stoull(string) : def;
-	}
-	catch (const std::invalid_argument&)
-	{}
-	catch (const std::out_of_range&)
-	{}
 
-	return def;
-}
-
-int create(char *before_tree, char *after_tree, char *patch_file,
-		char *threads, char *mem_limit, char *cache_dir)
-{
-	if (!before_tree) {
-		fprintf(stderr, "error: <before_tree> missing\n");
-		return 1;
-	}
-
-	if (!after_tree) {
-		fprintf(stderr, "error: <after_tree> missing\n");
-		return 1;
-	}
-
-	if (!patch_file) {
-		fprintf(stderr, "error: <patch_file> missing\n");
-		return 1;
-	}
-
-	path before_path(before_tree);
-	path after_path(after_tree);
-	path patch_path(patch_file);
-	path cache_path;
-	
 	if (!is_directory(before_path)) {
-		fprintf(stderr, "error: <before_tree> '%s' is not a directory\n", before_path.generic_string().c_str());
+		std::cerr << "error: <before_tree> '" << before_path.generic_string() << "' is not a directory" << std::endl;
 		return 1;
 	}
 
 	if (!is_directory(after_path)) {
-		fprintf(stderr, "error: <after_tree> option '%s' is not a directory\n", after_path.generic_string().c_str());
+		std::cerr << "error: <after_tree> option '" << after_path.generic_string() << "' is not a directory" << std::endl;
 		return 1;
 	}
 
 	if (exists(patch_path)) {
-		fprintf(stderr, "error: <patch_file> '%s' already exists\n", patch_path.generic_string().c_str());
+		std::cerr << "error: <patch_file> '" << patch_path.generic_string() << "' already exists" << std::endl;
 		return 2;
 	}
 
-	if (cache_dir && !is_directory(cache_path = absolute(cache_dir))) {
-		fprintf(stderr, "error: [cache_dir] '%s' is not a directory", cache_path.generic_string().c_str());
+	if (cache_path && !is_directory(cache_path.get())) {
+		std::cerr << "error: [cache_dir] '" << cache_path.get().generic_string() << "' is not a directory" << std::endl;
 		return 3;
 	}
 
-	const auto num_threads  = parse_val(threads, std::max(1u, std::thread::hardware_concurrency()));
-	auto memory_limit = parse_val<size_t>(mem_limit, -1);
-	if (memory_limit != -1)
+	if (memory_limit != std::numeric_limits<unsigned int>::max())
 		memory_limit *= 1024 * 1024;
 
 	std::map<std::string, delta_info> before_tree_state;
@@ -374,7 +535,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 				continue;
 			}
 		}
-		
+
 		after_tree_state[key] = info;
 	}
 
@@ -386,7 +547,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	std::cout << "    mod cnt: " << after_tree_state.size() << std::endl;
 
 	printf("generating delta operations...\n");
-	
+
 	int a_op_cnt = 0;
 	int b_op_cnt = 0;
 	int d_op_cnt = 0;
@@ -420,28 +581,31 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 			b_op_cnt++;
 			toc.ops.emplace_back(delta_op_type::PATCH, i.first, before_info.type);
 
-			path cache_file_path = cache_path / bin2hex(before_info.hash) / bin2hex(after_info.hash);
-			if (!cache_path.empty() && exists(cache_file_path)) {
-				read_cached_diff(cache_file_path, toc.ops.back().patch);
+			boost::optional<path> cache_file_path;
+			if (cache_path)
+				cache_file_path = cache_path.get() / bin2hex(before_info.hash) / bin2hex(after_info.hash);
+
+			if (cache_file_path && exists(cache_file_path.get())) {
+				read_cached_diff(cache_file_path.get(), toc.ops.back().patch);
 				continue;
 			}
 
 			size_t max_size = bsdiff_patchsize_max(before_info.size, after_info.size);
 			patch_infos.emplace_back(before_info.size, after_info.size, max_size,
-					before_path / i.first, after_path / i.first, &toc.ops.back().patch);
+				before_path / i.first, after_path / i.first, &toc.ops.back().patch);
 
-			if (!cache_path.empty())
-				patch_infos.back().cache_path = cache_file_path;
+			if (cache_file_path)
+				patch_infos.back().cache_path = cache_file_path.get();
 		}
 	}
 
 	std::sort(begin(patch_infos), end(patch_infos),
-			[](const deferred_patch_info &a, const deferred_patch_info &b) {
+		[](const deferred_patch_info &a, const deferred_patch_info &b) {
 		return a.max_mem_usage() > b.max_mem_usage();
 	});
 
 	const size_t buffer_size = std::accumulate(begin(patch_infos), end(patch_infos), 0,
-			[](size_t start, const deferred_patch_info &b) {
+		[](size_t start, const deferred_patch_info &b) {
 		return start + b.max_patch_size;
 	});
 
@@ -457,7 +621,7 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	}
 
 	printf("  %4d deletions\n  %4d additions\n  %4d bpatches (%d cached)\n",
-			d_op_cnt, a_op_cnt, b_op_cnt, static_cast<int>(b_op_cnt - patch_infos.size()));
+		d_op_cnt, a_op_cnt, b_op_cnt, static_cast<int>(b_op_cnt - patch_infos.size()));
 
 	size_t memory_used = buffer_size;
 	std::mutex patch_info_mutex;
@@ -499,11 +663,11 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 				}
 
 				get_file_contents(work_item->before_path, work_item->before_size, p1_data);
-				get_file_contents(work_item->after_path,  work_item->after_size,  p2_data);
+				get_file_contents(work_item->after_path, work_item->after_size, p2_data);
 
 				int actual_size = bsdiff(p1_data.data(), work_item->before_size,
-						p2_data.data(), work_item->after_size, work_item->patch->data(),
-						work_item->max_patch_size);
+					p2_data.data(), work_item->after_size, work_item->patch->data(),
+					work_item->max_patch_size);
 				work_item->patch->resize(actual_size);
 				if (!work_item->cache_path.empty())
 					write_cached_diff(work_item->cache_path, *work_item->patch);
@@ -556,37 +720,24 @@ int create(char *before_tree, char *after_tree, char *patch_file,
 	return 0;
 }
 
-int apply(char *before_tree, char *patch_file)
+int apply(const path &before_path, const path &patch_path)
 {
-	if (!before_tree) {
-		fprintf(stderr, "error: <before_tree> missing\n");
-		return 1;
-	}
-
-	if (!patch_file) {
-		fprintf(stderr, "error: <patch_file> missing\n");
-		return 1;
-	}
-
-	path before_path(before_tree);
-	path patch_path(patch_file);
-
 	if (!is_directory(before_path)) {
-		fprintf(stderr, "error: <before_tree> '%s' is not a directory\n", before_path.generic_string().c_str());
+		std::cerr << "error: <before_tree> '" << before_path.generic_string() << "' is not a directory" << std::endl;
 		return 1;
 	}
 
 	if (!exists(patch_path) || !is_regular_file(patch_path)) {
-		fprintf(stderr, "error: <patch_file> '%s' does not exist or not a file\n", patch_path.generic_string().c_str());
+		std::cerr << "error: <patch_file> '" << patch_path.generic_string() << "' does not exist or not a file" << std::endl;
 		return 2;
 	}
-	
-	path after_path(get_temp_directory());
-	
+
+	const path after_path(get_temp_directory());
+
 	printf("copying %s to %s...\n", before_path.generic_string().c_str(), after_path.generic_string().c_str());
 
 	copy_directory_recursive(before_path, after_path);
-	DEFER { remove_all(after_path); };
+	DEFER{ remove_all(after_path); };
 
 	std::ifstream ifs(patch_path.native(), std::ios::binary);
 	filtering_istream filter;
@@ -639,7 +790,7 @@ int apply(char *before_tree, char *patch_file)
 
 			get_file_contents(p, before_size, before_file);
 			archive(delta);
-			auto after_size = bspatch_newsize(delta.data(), delta.size());		
+			auto after_size = bspatch_newsize(delta.data(), delta.size());
 			after_file.resize(after_size);
 			int res = bspatch(before_file.data(), before_file.size(), delta.data(), delta.size(), after_file.data(), after_file.size());
 			if (res != 0) {

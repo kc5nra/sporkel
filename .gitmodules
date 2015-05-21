@@ -67,3 +67,42 @@
 [submodule "ext/boost/integer"]
 	path = ext/boost/integer
 	url = https://github.com/boostorg/integer.git
+[submodule "ext/boost/program_options"]
+	path = ext/boost/program_options
+	url = https://github.com/boostorg/program_options
+[submodule "ext/boost/any"]
+	path = ext/boost/any
+	url = https://github.com/boostorg/any
+[submodule "ext/boost/bind"]
+	path = ext/boost/bind
+	url = https://github.com/boostorg/bind
+[submodule "ext/boost/type_index"]
+	path = ext/boost/type_index
+	url = https://github.com/boostorg/type_index
+[submodule "ext/boost/function"]
+	path = ext/boost/function
+	url = https://github.com/boostorg/function
+[submodule "ext/boost/lexical_cast"]
+	path = ext/boost/lexical_cast
+	url = https://github.com/boostorg/lexical_cast
+[submodule "ext/boost/numeric_conversion"]
+	path = ext/boost/numeric_conversion
+	url = https://github.com/boostorg/numeric_conversion
+[submodule "ext/boost/array"]
+	path = ext/boost/array
+	url = https://github.com/boostorg/array
+[submodule "ext/boost/container"]
+	path = ext/boost/container
+	url = https://github.com/boostorg/container
+[submodule "ext/boost/math"]
+	path = ext/boost/math
+	url = https://github.com/boostorg/math
+[submodule "ext/boost/tokenizer"]
+	path = ext/boost/tokenizer
+	url = https://github.com/boostorg/tokenizer
+[submodule "ext/boost/optional"]
+	path = ext/boost/optional
+	url = https://github.com/boostorg/optional
+[submodule "ext/boost/move"]
+	path = ext/boost/move
+	url = https://github.com/boostorg/move
