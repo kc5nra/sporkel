@@ -480,10 +480,10 @@ int create(const path &before_path, const path &after_path, const path &patch_pa
 	}
 
 	sporkel_callback_t cb {
-		.progress_cb = nullptr,
-		.progress_data = nullptr,
-		.log_cb = sporkel_log,
-		.log_data = nullptr
+		nullptr,
+		nullptr,
+		sporkel_log,
+		nullptr
 	};
 
 	if (!sporkel_patch_create(before_path.generic_string().c_str(), after_path.generic_string().c_str(),
@@ -526,10 +526,10 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup)
 	sporkel::tmp_dir_ptr tmp_dir(sporkel_tmp_dir_create());
 
 	sporkel_callback_t cb {
-		.progress_cb = nullptr,
-		.progress_data = nullptr,
-		.log_cb = sporkel_log,
-		.log_data = nullptr
+		nullptr,
+		nullptr,
+		sporkel_log,
+		nullptr
 	};
 
 	std::cout << "applying patch " << patch_path << " to " << before_path << std::endl;
