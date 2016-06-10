@@ -43,7 +43,13 @@ set(sodium_SOURCES
 	# libsodium/src/libsodium/crypto_core/salsa208/ref/core_salsa208.c
 	# libsodium/src/libsodium/crypto_core/salsa20/core_salsa20_api.c
 	# libsodium/src/libsodium/crypto_core/salsa20/ref/core_salsa20.c
+	libsodium/src/libsodium/crypto_core/curve25519/ref10/curve25519_ref10.c
 	libsodium/src/libsodium/crypto_generichash/blake2/generichash_blake2_api.c
+	libsodium/src/libsodium/crypto_generichash/blake2/ref/blake2b-ref.c
+	libsodium/src/libsodium/crypto_generichash/blake2/ref/blake2b-compress-avx2.c
+	libsodium/src/libsodium/crypto_generichash/blake2/ref/blake2b-compress-ref.c
+	libsodium/src/libsodium/crypto_generichash/blake2/ref/blake2b-compress-sse41.c
+	libsodium/src/libsodium/crypto_generichash/blake2/ref/blake2b-compress-ssse3.c
 	libsodium/src/libsodium/crypto_generichash/blake2/ref/blake2b-ref.c
 	libsodium/src/libsodium/crypto_generichash/blake2/ref/generichash_blake2b.c
 	libsodium/src/libsodium/crypto_generichash/crypto_generichash.c
@@ -90,51 +96,11 @@ set(sodium_SOURCES
 	# libsodium/src/libsodium/crypto_shorthash/siphash24/ref/shorthash_siphash24.c
 	# libsodium/src/libsodium/crypto_shorthash/siphash24/shorthash_siphash24_api.c
 	libsodium/src/libsodium/crypto_sign/crypto_sign.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_0.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_1.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_add.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_cmov.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_copy.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_frombytes.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_invert.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_isnegative.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_isnonzero.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_mul.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_neg.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_pow22523.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_sq.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_sq2.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_sub.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/fe_tobytes.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_add.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_double_scalarmult.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_frombytes.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_madd.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_msub.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p1p1_to_p2.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p1p1_to_p3.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p2_0.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p2_dbl.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p3_0.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p3_dbl.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p3_tobytes.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p3_to_cached.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_p3_to_p2.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_precomp_0.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_scalarmult_base.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_sub.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/ge_tobytes.c
+	libsodium/src/libsodium/crypto_sign/ed25519/ref10/obsolete.c
 	libsodium/src/libsodium/crypto_sign/ed25519/ref10/keypair.c
 	libsodium/src/libsodium/crypto_sign/ed25519/ref10/open.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/sc_muladd.c
-	libsodium/src/libsodium/crypto_sign/ed25519/ref10/sc_reduce.c
 	libsodium/src/libsodium/crypto_sign/ed25519/ref10/sign.c
 	libsodium/src/libsodium/crypto_sign/ed25519/sign_ed25519_api.c
-	libsodium/src/libsodium/crypto_sign/edwards25519sha512batch/ref/fe25519_edwards25519sha512batch.c
-	libsodium/src/libsodium/crypto_sign/edwards25519sha512batch/ref/ge25519_edwards25519sha512batch.c
-	libsodium/src/libsodium/crypto_sign/edwards25519sha512batch/ref/sc25519_edwards25519sha512batch.c
-	libsodium/src/libsodium/crypto_sign/edwards25519sha512batch/ref/sign_edwards25519sha512batch.c
-	libsodium/src/libsodium/crypto_sign/edwards25519sha512batch/sign_edwards25519sha512batch_api.c
 	# libsodium/src/libsodium/crypto_stream/aes128ctr/portable/afternm_aes128ctr.c
 	# libsodium/src/libsodium/crypto_stream/aes128ctr/portable/beforenm_aes128ctr.c
 	# libsodium/src/libsodium/crypto_stream/aes128ctr/portable/common_aes128ctr.c
