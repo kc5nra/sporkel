@@ -48,7 +48,8 @@ namespace {
 	{
 		DELETE,
 		ADD,
-		PATCH
+		PATCH,
+		KEEP
 	};
 
 	struct delta_op {
@@ -80,6 +81,7 @@ namespace {
 		std::vector<delta_op> ops;
 		std::string before_hash;
 		std::string after_hash;
+		bool require_exact_patch_target = false;
 
 	private:
 		friend class cereal::access;
@@ -87,6 +89,9 @@ namespace {
 		void serialize(Archive &ar, const unsigned int version)
 		{
 			switch (version) {
+			case 2:
+				ar(ops, before_hash, after_hash, require_exact_patch_target);
+				break;
 			case 1:
 				ar(ops, before_hash, after_hash);
 				break;
@@ -123,7 +128,7 @@ namespace {
 }
 
 CEREAL_CLASS_VERSION(delta_op, 1);
-CEREAL_CLASS_VERSION(delta_op_toc, 1);
+CEREAL_CLASS_VERSION(delta_op_toc, 2);
 
 static void hash_delta_info(const std::string &path, const delta_info &di, crypto_generichash_state &state);
 static void hash_entry(const fs::directory_entry &i, unsigned char(&hash)[crypto_generichash_BYTES]);
@@ -341,7 +346,27 @@ static bool sporkel_patch_apply_internal(const fs::path &before_path, std::istre
 		before_tree_state[path.generic_string()] = make_delta_info(i);
 	});
 
-	std::string before_tree_hash = get_tree_hash(before_tree_state);
+	std::string before_tree_hash;
+	if (toc.require_exact_patch_target)
+		before_tree_hash = get_tree_hash(before_tree_state);
+	else {
+		std::map<std::string, delta_info> before_tree_state_mod;
+		for (auto &i : toc.ops) {
+			if (i.type == delta_op_type::ADD)
+				continue;
+			
+			auto res = before_tree_state.find(i.path);
+			if (res == end(before_tree_state)) {
+				spkloge(cb, "patch contains non-ADD op for non-existing file " << i.path);
+				return false;
+			}
+
+			before_tree_state_mod.emplace(*res);
+			//spklogi(cb, res->first << ": " << bin2hex(res->second.hash));
+		}
+		before_tree_hash = get_tree_hash(before_tree_state_mod);
+	}
+
 	if (before_tree_hash != toc.before_hash) {
 		spkloge(cb, "current tree hash " << before_tree_hash << " does not match the expected tree hash " <<
 				toc.before_hash);
@@ -386,6 +411,8 @@ static bool sporkel_patch_apply_internal(const fs::path &before_path, std::istre
 			sporkel_util::set_file_contents(p, after_file.data(), after_file.size());
 			break;
 		}
+		case delta_op_type::KEEP:
+			break;
 		case delta_op_type::DELETE:
 			path p = dest / i.path;
 			remove_all(p);
@@ -403,6 +430,28 @@ static bool sporkel_patch_apply_internal(const fs::path &before_path, std::istre
 	});
 
 	std::string after_tree_hash = get_tree_hash(after_tree_state);
+	if (toc.require_exact_patch_target)
+		after_tree_hash = get_tree_hash(after_tree_state);
+	else {
+		delta_info deleted;
+		deleted.deleted = true;
+
+		std::map<std::string, delta_info> after_tree_state_mod;
+		for (auto &i : toc.ops) {
+			switch (i.type) {
+			case delta_op_type::ADD:
+			case delta_op_type::PATCH:
+			case delta_op_type::KEEP:
+				after_tree_state_mod.emplace(i.path, after_tree_state[i.path]);
+				break;
+
+			case delta_op_type::DELETE:
+				after_tree_state_mod[i.path] = deleted;
+			}
+		}
+		after_tree_hash = get_tree_hash(after_tree_state_mod);
+	}
+
 	if (after_tree_hash != toc.after_hash) {
 		spkloge(cb, "patched tree hash " << after_tree_hash <<
 				" does not match the expected tree hash " << toc.after_hash);
@@ -444,11 +493,14 @@ static void read_cached_diff(const fs::path &p, std::vector<uint8_t> &data)
 
 static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_path, fs::path patch_path,
 		unsigned num_threads, unsigned memory_limit, boost::optional<fs::path> cache_path, unsigned lzma_preset,
+		bool require_exact_patch_target,
 		sporkel_callback_t *cb);
 
 bool sporkel_patch_create(const char *before_path, const char *after_path, const char *patch_path,
 		unsigned num_threads, unsigned memory_limit, const char *cache_path,
-		unsigned lzma_preset, sporkel_callback_t *cb)
+		unsigned lzma_preset,
+		bool require_exact_patch_target,
+		sporkel_callback_t *cb)
 {
 	try {
 		boost::optional<fs::path> cache;
@@ -456,7 +508,7 @@ bool sporkel_patch_create(const char *before_path, const char *after_path, const
 			cache = cache_path;
 
 		return sporkel_patch_create_internal(before_path, after_path, patch_path,
-				num_threads, memory_limit, cache, lzma_preset, cb);
+				num_threads, memory_limit, cache, lzma_preset, require_exact_patch_target, cb);
 	} catch (...) {
 		return false;
 	}
@@ -464,6 +516,7 @@ bool sporkel_patch_create(const char *before_path, const char *after_path, const
 
 static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_path, fs::path patch_path,
 		unsigned num_threads, unsigned memory_limit, boost::optional<fs::path> cache_path, unsigned lzma_preset,
+		bool require_exact_patch_target,
 		sporkel_callback_t *cb)
 {
 	using namespace fs;
@@ -475,6 +528,7 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 	std::map<std::string, delta_info> before_tree_state;
 	std::map<std::string, delta_info> after_tree_state_unmod;
 	std::map<std::string, delta_info> after_tree_state;
+	std::map<std::string, delta_info> before_tree_state_mod;
 
 	delta_info deleted;
 	deleted.deleted = true;
@@ -490,7 +544,8 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 			after_tree_state.emplace(std::move(key), deleted);
 		});
 
-		toc.before_hash = get_tree_hash(before_tree_state);
+		if (require_exact_patch_target)
+			toc.before_hash = get_tree_hash(before_tree_state);
 	});
 
 	if (num_threads == 1)
@@ -504,7 +559,8 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 			after_tree_state_unmod.emplace(std::move(key), std::move(after_info));
 		});
 
-		toc.after_hash = get_tree_hash(after_tree_state_unmod);
+		if (require_exact_patch_target)
+			toc.after_hash = get_tree_hash(after_tree_state_unmod);
 	});
 
 	if (before_thread.joinable())
@@ -516,7 +572,7 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 		auto &info = after.second;
 
 		auto res = before_tree_state.find(key);
-		if (res != end(before_tree_state)) {
+		if (require_exact_patch_target && res != end(before_tree_state)) {
 			if (res->second == info) {
 				after_tree_state.erase(key);
 				continue;
@@ -524,6 +580,18 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 		}
 
 		after_tree_state[key] = info;
+
+		if (res == end(before_tree_state))
+			continue;
+
+		before_tree_state_mod.emplace(*res);
+		//spklogi(cb, res->first << ": " << bin2hex(res->second.hash));
+	}
+
+	if (!require_exact_patch_target) {
+		toc.before_hash = get_tree_hash(before_tree_state_mod);
+		toc.after_hash = get_tree_hash(after_tree_state);
+		toc.require_exact_patch_target = require_exact_patch_target;
 	}
 
 	spklogi(cb, "before tree: '" << before_path.generic_string() << "'");
@@ -559,6 +627,11 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 		}
 
 		auto &before_info = res->second;
+		if (!require_exact_patch_target && before_info == after_info) {
+			toc.ops.emplace_back(delta_op_type::KEEP, i.first, after_info.type);
+			continue;
+		}
+
 		if (before_info.type != after_info.type) {
 			d_op_cnt++; a_op_cnt++;
 			toc.ops.emplace_back(delta_op_type::DELETE, i.first, before_info.type);

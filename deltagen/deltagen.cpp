@@ -21,7 +21,7 @@ static bool verbose;
 
 int create(const path &before_path, const path &after_path, const path &patch_path,
 	unsigned int num_threads, unsigned int memory_limit,
-	const boost::optional<path> &cache_path, unsigned int lzma_preset);
+	const boost::optional<path> &cache_path, unsigned int lzma_preset, bool require_exact_patch_target);
 
 int apply(const path &before_path, const path &patch_path, bool keep_backup);
 int keypair(const path &secret_key_file, const path &public_key_file);
@@ -106,6 +106,7 @@ struct create_command : command {
 			("threads,t", po::value<unsigned int>()->default_value(std::max(1u, std::thread::hardware_concurrency())), "number of threads to use")
 			("memory,m", po::value<int>()->default_value(-1), "memory limit")
 			("lzma-preset,l", po::value<unsigned int>()->default_value(2), "lzma compression preset")
+			("require-exact-patch-target", po::value<bool>()->default_value(true), "patch target (directory) has to match patch source directory exactly (otherwise, allows other files in target directory when applying patch); creates slightly smaller patch files when enabled")
 			("before", po::value<std::string>()->required(), "before tree (initial tree state)")
 			("after", po::value<std::string>()->required(), "after tree (state to create after applying patch)")
 			("patch", po::value<std::string>()->required(), "path to patch file being created");
@@ -137,7 +138,8 @@ struct create_command : command {
 			vm["threads"].as<unsigned int>(), 
 			vm["memory"].as<int>(), 
 			cache,
-			vm["lzma-preset"].as<unsigned int>());
+			vm["lzma-preset"].as<unsigned int>(),
+			vm["require-exact-patch-target"].as<bool>());
 	}
 };
 
@@ -456,7 +458,7 @@ static void sporkel_log(void*, sporkel_log_level level, const char *message)
 
 int create(const path &before_path, const path &after_path, const path &patch_path,
 		unsigned int num_threads, unsigned int memory_limit, const boost::optional<path> &cache_path,
-		unsigned int lzma_preset)
+		unsigned int lzma_preset, bool require_exact_patch_target)
 {
 
 	if (!is_directory(before_path)) {
@@ -489,6 +491,7 @@ int create(const path &before_path, const path &after_path, const path &patch_pa
 	if (!sporkel_patch_create(before_path.generic_string().c_str(), after_path.generic_string().c_str(),
 				patch_path.generic_string().c_str(), num_threads, memory_limit,
 				cache_path ? cache_path->generic_string().c_str() : nullptr, lzma_preset,
+				require_exact_patch_target,
 				&cb))
 		return 3;
 

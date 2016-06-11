@@ -66,6 +66,7 @@ bool sporkel_patch_apply(const char *before_path, const char *patch_path, const 
 		bool keep_tmp_path, sporkel_callback_t *cb);
 bool sporkel_patch_create(const char *before_path, const char *after_path, const char *patch_path,
 		unsigned num_threads, unsigned memory_limit, const char *cache_path, unsigned lzma_preset,
+		bool require_exact_patch_target,
 		sporkel_callback_t *cb);
 
 // patch util
