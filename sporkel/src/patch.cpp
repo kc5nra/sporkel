@@ -493,6 +493,9 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 		toc.before_hash = get_tree_hash(before_tree_state);
 	});
 
+	if (num_threads == 1)
+		before_thread.join();
+
 	spklogi(cb, "processing " << after_path.generic_string() << "...");
 	std::thread after_thread([&] {
 		process_tree(after_path, [&](path &path, const directory_entry &i) {
@@ -504,7 +507,8 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 		toc.after_hash = get_tree_hash(after_tree_state_unmod);
 	});
 
-	before_thread.join();
+	if (before_thread.joinable())
+		before_thread.join();
 	after_thread.join();
 
 	for (auto &after : after_tree_state_unmod) {
