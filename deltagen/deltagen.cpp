@@ -548,7 +548,11 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup)
 
 	DEFER {
 		std::cout << "removing temporary path " << tmp_path << std::endl;
-		remove_all(tmp_path);
+		boost::system::error_code err;
+		remove_all(tmp_path, err);
+		if (err.value() != boost::system::errc::success) {
+			std::cerr << "error removing temporary path " << tmp_path << std::endl;
+		}
 	};
 
 	if (exists(backup_path)) {
