@@ -570,8 +570,11 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup)
 		}
 	};
 
-	if (!sporkel_util::copy_directory_recursive(tmp_path, before_path)) {
-		std::cerr << "error: failed to copy " << tmp_path << " to " << before_path << std::endl;
+	err.clear();
+	rename(tmp_path, before_path, err);
+
+	if (err.value() != boost::system::errc::success) {
+		std::cerr << "error: failed to move " << tmp_path << " to " << before_path << std::endl;
 		std::cout << "removing failed copy of " << before_path << std::endl;
 		remove_all(before_path);
 		std::cout << "restoring backup from " << backup_path << " to " << before_path << std::endl;
