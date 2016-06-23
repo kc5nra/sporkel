@@ -295,7 +295,7 @@ const char *sporkel_tmp_dir_path(const sporkel_tmp_dir_t *dir)
 #define spklogw(cb, x) sporklog(cb, SPORKEL_WARNING, x)
 #define spkloge(cb, x) sporklog(cb, SPORKEL_ERROR, x)
 
-static bool sporkel_patch_apply_internal(const fs::path &before_path, std::istream &is, const fs::path &dest,
+static bool sporkel_patch_apply_internal(fs::path before_path, std::istream &is, fs::path dest,
 		bool remove_if_failed, sporkel_callback_t *cb);
 
 bool sporkel_patch_apply(const char *before_path_, const char *patch_path_, const char *dest_,
@@ -312,22 +312,36 @@ bool sporkel_patch_apply(const char *before_path_, const char *patch_path_, cons
 	}
 }
 
-static bool sporkel_patch_apply_internal(const fs::path &before_path, std::istream &is, const fs::path &dest,
+static bool sporkel_patch_apply_internal(fs::path before_path, std::istream &is, fs::path dest,
 		bool removed_if_failed, sporkel_callback_t *cb)
 {
 	using namespace fs;
 	using namespace io;
 
-	spklogi(cb, "copying " << before_path.generic_string() << " to " << dest.generic_string());
+	if (before_path.empty() && dest.empty()) {
+		spkloge(cb, "before_path and dest are empty");
+		return false;
+	}
 
-	sporkel_util::copy_directory_recursive(before_path, dest);
+	bool target_copied = !(before_path.empty() || dest.empty() || before_path == dest);
+
+	if (target_copied) {
+		spklogi(cb, "copying " << before_path.generic_string() << " to " << dest.generic_string());
+		sporkel_util::copy_directory_recursive(before_path, dest);
+	}
+
 	bool patch_failed = true;
 	DEFER{
-		if (removed_if_failed && patch_failed) {
+		if (removed_if_failed && patch_failed && target_copied) {
 			spklogi(cb, "removing " << dest.generic_string() << "...");
 			remove_all(dest);
 		}
 	};
+
+	if (before_path.empty())
+		before_path = dest;
+	if (dest.empty())
+		dest = before_path;
 
 	filtering_istream filter;
 
