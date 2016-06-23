@@ -80,7 +80,7 @@ const char *sporkel_tmp_dir_path(const sporkel_tmp_dir_t *dir);
 namespace sporkel {
 	template <typename T>
 	struct deleter {
-		void operator()(T *o) {}
+		void operator()(T *o) {(void)o;}
 	};
 	template <>
 	struct deleter<sporkel_public_key_t> {
