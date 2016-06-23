@@ -672,7 +672,7 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 	auto min_memory_limit = buffer_size + (patch_infos.empty() ? 0 : patch_infos.front().max_mem_usage());
 
 	spklogi(cb, "memory required: " << static_cast<unsigned>(min_memory_limit / 1024 / 1024 + 1) << " MB\n");
-	if (memory_limit != -1)
+	if (memory_limit != std::numeric_limits<unsigned int>::max())
 		spklogi(cb, "memory limit: " << static_cast<unsigned>(memory_limit / 1024 / 1024) << " MB\n");
 
 	if (min_memory_limit > memory_limit) {
