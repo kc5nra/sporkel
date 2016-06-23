@@ -777,6 +777,7 @@ static bool sporkel_patch_create_internal(fs::path before_path, fs::path after_p
 		case delta_op_type::PATCH:
 			archive(i.patch);
 			break;
+		case delta_op_type::KEEP:
 		case delta_op_type::DELETE:
 			break;
 		}
