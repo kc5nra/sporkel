@@ -15,6 +15,13 @@ if (RUNTIME_TYPE)
     ucm_print_flags()
 endif()
 
+if (MSVC)
+    option(MP_COMPILATION "Enable multi processor compilation" TRUE)
+    if (MP_COMPILATION)
+        ucm_add_flags(/MP)
+    endif()
+endif()
+
 add_subdirectory(ext)
 add_subdirectory(sporkel)
 add_subdirectory(deltagen)
