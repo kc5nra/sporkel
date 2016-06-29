@@ -14,6 +14,7 @@ typedef struct sporkel_secret_key sporkel_secret_key_t;
 typedef struct sporkel_keypair sporkel_keypair_t;
 typedef struct sporkel_signature sporkel_signature_t;
 typedef struct sporkel_tmp_dir sporkel_tmp_dir_t;
+typedef struct sporkel_hash sporkel_hash_t;
 
 typedef enum sporkel_log_level {
 	SPORKEL_DEBUG,
@@ -74,6 +75,12 @@ sporkel_tmp_dir_t *sporkel_tmp_dir_create(void);
 void sporkel_tmp_dir_destroy(sporkel_tmp_dir_t *dir);
 const char *sporkel_tmp_dir_path(const sporkel_tmp_dir_t *dir);
 
+// hash
+sporkel_hash_t *sporkel_hash_create_from_file(const char *path);
+void sporkel_hash_destroy(sporkel_hash_t *hash);
+const char *sporkel_hash_hex(const sporkel_hash_t *hash);
+size_t sporkel_hash_hex_len();
+
 #ifdef __cplusplus
 }
 
@@ -111,6 +118,7 @@ namespace sporkel {
 	using keypair_ptr    = ptr<sporkel_keypair_t>;
 	using signature_ptr  = ptr<sporkel_signature_t>;
 	using tmp_dir_ptr    = ptr<sporkel_tmp_dir_t>;
+	using hash_ptr       = ptr<sporkel_hash_t>;
 
 	inline const char *sporkel_public_key_hex(const public_key_ptr &ptr)
 	{
@@ -123,6 +131,10 @@ namespace sporkel {
 	inline const char *sporkel_signature_hex(const signature_ptr &ptr)
 	{
 		return sporkel_signature_hex(ptr.get());
+	}
+	inline const char *sporkel_hash_hex(const hash_ptr &ptr)
+	{
+		return sporkel_hash_hex(ptr.get());
 	}
 
 	inline const sporkel_public_key_t *sporkel_keypair_public_key(const keypair_ptr &pair)

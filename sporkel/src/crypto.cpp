@@ -1,6 +1,10 @@
 #include "common.h"
 #include <algorithm>
 
+#include <boost/filesystem.hpp>
+
+#include "../../util/util.hpp"
+
 template <typename T>
 static inline T *from_hex(const char *hex, size_t size)
 {
@@ -79,4 +83,43 @@ const char *sporkel_signature_hex(const sporkel_signature_t *signature)
 size_t sporkel_signature_hex_len()
 {
 	return sporkel_detail::crypto_size<sporkel_signature_t>::hex_bytes;
+}
+
+
+sporkel_hash_t *sporkel_hash_create_from_file(const char *path)
+{
+	if (!path)
+		return nullptr;
+
+	std::unique_ptr<sporkel_hash_t> hash;
+	std::vector<unsigned char> data;
+	try {
+		auto size = boost::filesystem::file_size(path);
+		sporkel_util::get_file_contents(path, size, data);
+
+		hash.reset(new sporkel_hash_t{});
+	} catch (...) {
+		return nullptr;
+	}
+
+	if (crypto_generichash(hash->bin, sporkel_detail::crypto_size<sporkel_hash_t>::bin_bytes, data.data(), data.size(), nullptr, 0))
+		return nullptr;
+
+	bin2hex(hash->bin, hash->hex);
+	return hash.release();
+}
+
+void sporkel_hash_destroy(sporkel_hash_t *hash)
+{
+	delete hash;
+}
+
+const char *sporkel_hash_hex(const sporkel_hash_t *hash)
+{
+	return hash->hex;
+}
+
+size_t sporkel_hash_hex_len()
+{
+	return sporkel_detail::crypto_size<sporkel_hash_t>::hex_bytes;
 }

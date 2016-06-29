@@ -11,6 +11,7 @@
 #define SPORKEL_SECRETKEY_SIZE (crypto_sign_SECRETKEYBYTES * 2U)
 #define SPORKEL_PUBLICKEY_SIZE (crypto_sign_PUBLICKEYBYTES * 2U)
 #define SPORKEL_SIGNATURE_SIZE (crypto_sign_BYTES * 2U)
+#define SPORKEL_HASH_SIZE      (crypto_generichash_blake2b_BYTES_MAX * 2U)
 
 namespace sporkel_detail {
 	template <typename T>
@@ -30,6 +31,11 @@ namespace sporkel_detail {
 		static const size_t bin_bytes = crypto_sign_BYTES;
 		static const size_t hex_bytes = SPORKEL_SIGNATURE_SIZE;
 	};
+	template <>
+	struct crypto_size<sporkel_hash_t> {
+		static const size_t bin_bytes = crypto_generichash_blake2b_BYTES_MAX;
+		static const size_t hex_bytes = SPORKEL_HASH_SIZE;
+	};
 }
 
 struct sporkel_public_key {
@@ -45,6 +51,11 @@ struct sporkel_secret_key {
 struct sporkel_signature {
 	unsigned char bin[crypto_sign_BYTES];
 	char          hex[SPORKEL_SIGNATURE_SIZE + 1] = {0};
+};
+
+struct sporkel_hash {
+	unsigned char bin[crypto_generichash_blake2b_BYTES_MAX];
+	char          hex[SPORKEL_HASH_SIZE + 1] = { 0 };
 };
 
 template <typename T1, size_t N1, typename T2, size_t N2>
