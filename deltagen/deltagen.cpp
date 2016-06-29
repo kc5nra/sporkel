@@ -27,6 +27,7 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup);
 int keypair(const path &secret_key_file, const path &public_key_file);
 int sign(const path &secret_key_path, const path &file_path);
 int verify(const path &public_key_path, const path &file_path, const std::string &signature);
+int hash(const path &file_path);
 
 int remove_positional(po::options_description &op_desc, int pos_cnt)
 {
@@ -248,6 +249,37 @@ struct verify_command : command {
 	}
 };
 
+struct hash_command : command {
+
+	hash_command() {
+		name = "hash";
+		header = "hash <file>";
+	}
+
+	int options(po::options_description &desc)
+	{
+		desc.add_options()
+			("file", po::value<std::string>()->required(), "file to hash");
+
+		return 1;
+	}
+
+	int handle(std::vector<std::string> &arguments, po::variables_map &vm) {
+		po::options_description desc;
+		options(desc);
+
+		po::positional_options_description pos;
+
+		pos.add("file", 1);
+
+		po::store(po::command_line_parser(arguments).options(desc).positional(pos).run(), vm);
+		po::notify(vm);
+
+		return hash(
+			vm["file"].as<std::string>());
+	}
+};
+
 int show_help(int result, std::string &bn, po::options_description &desc, std::map<std::string, command*> commands) {
 
 	remove_positional(desc, 2);
@@ -279,6 +311,7 @@ int main(int argc, const char *argv[])
 	keypair_command keypair_cmd;
 	sign_command sign_cmd;
 	verify_command verify_cmd;
+	hash_command hash_cmd;
 
 	std::map<std::string, command*> commands = {
 			{ apply_cmd.name, &apply_cmd },
@@ -286,6 +319,7 @@ int main(int argc, const char *argv[])
 			{ keypair_cmd.name, &keypair_cmd },
 			{ sign_cmd.name, &sign_cmd },
 			{ verify_cmd.name, &verify_cmd },
+			{ hash_cmd.name, &hash_cmd },
 	};
 	
 	int result = 0;
@@ -590,5 +624,17 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup)
 		return 2;
 	}
 
+	return 0;
+}
+
+int hash(const path &file_path)
+{
+	sporkel::hash_ptr hash{ sporkel_hash_create_from_file(file_path.string().c_str()) };
+	if (!hash) {
+		std::cerr << "Could not hash file " << file_path << "\n";
+		return -1;
+	}
+
+	std::cout << sporkel_hash_hex(hash) << '\n';
 	return 0;
 }
