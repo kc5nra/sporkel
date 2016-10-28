@@ -86,7 +86,7 @@ size_t sporkel_signature_hex_len()
 }
 
 
-sporkel_hash_t *sporkel_hash_create_from_file(const char *path)
+sporkel_hash_t *sporkel_hash_file(const char *path)
 {
 	if (!path)
 		return nullptr;

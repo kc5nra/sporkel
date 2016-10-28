@@ -76,7 +76,7 @@ void sporkel_tmp_dir_destroy(sporkel_tmp_dir_t *dir);
 const char *sporkel_tmp_dir_path(const sporkel_tmp_dir_t *dir);
 
 // hash
-sporkel_hash_t *sporkel_hash_create_from_file(const char *path);
+sporkel_hash_t *sporkel_hash_file(const char *path);
 void sporkel_hash_destroy(sporkel_hash_t *hash);
 const char *sporkel_hash_hex(const sporkel_hash_t *hash);
 size_t sporkel_hash_hex_len();

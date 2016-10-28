@@ -629,7 +629,7 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup)
 
 int hash(const path &file_path)
 {
-	sporkel::hash_ptr hash{ sporkel_hash_create_from_file(file_path.string().c_str()) };
+	sporkel::hash_ptr hash{ sporkel_hash_file(file_path.string().c_str()) };
 	if (!hash) {
 		std::cerr << "Could not hash file " << file_path << "\n";
 		return -1;
