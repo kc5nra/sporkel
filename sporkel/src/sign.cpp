@@ -16,6 +16,8 @@ sporkel_signature_t *sporkel_sign(const sporkel_secret_key_t *key,
 		return nullptr;
 	}
 
+	sodium_init();
+
 	crypto_sign_detached(sig->bin, nullptr, data, len, key->bin);
 	bin2hex(sig->bin, sig->hex);
 
@@ -26,5 +28,7 @@ bool sporkel_verify(const sporkel_public_key_t *key,
 		const sporkel_signature_t *sig,
 		const unsigned char *data, size_t len)
 {
+	sodium_init();
+
 	return crypto_sign_verify_detached(sig->bin, data, len, key->bin) == 0;
 }

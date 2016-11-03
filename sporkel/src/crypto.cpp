@@ -27,16 +27,22 @@ static inline T *from_hex(const char *hex, size_t size)
 
 sporkel_public_key_t *sporkel_public_key_from_hex(const char *hex, size_t size)
 {
+	sodium_init();
+
 	return from_hex<sporkel_public_key_t>(hex, size);
 }
 
 sporkel_secret_key_t *sporkel_secret_key_from_hex(const char *hex, size_t size)
 {
+	sodium_init();
+
 	return from_hex<sporkel_secret_key_t>(hex, size);
 }
 
 sporkel_signature_t *sporkel_signature_from_hex(const char *hex, size_t size)
 {
+	sodium_init();
+
 	return from_hex<sporkel_signature_t>(hex, size);
 }
 
@@ -90,6 +96,8 @@ sporkel_hash_t *sporkel_hash_file(const char *path)
 {
 	if (!path)
 		return nullptr;
+
+	sodium_init();
 
 	std::unique_ptr<sporkel_hash_t> hash;
 	std::vector<unsigned char> data;

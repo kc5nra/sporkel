@@ -302,6 +302,8 @@ bool sporkel_patch_apply(const char *before_path_, const char *patch_path_, cons
 		bool remove_if_failed, sporkel_callback_t *cb)
 {
 	try {
+		sodium_init();
+
 		fs::path patch_path(patch_path_);
 		fs::path dest(dest_);
 
@@ -517,6 +519,8 @@ bool sporkel_patch_create(const char *before_path, const char *after_path, const
 		sporkel_callback_t *cb)
 {
 	try {
+		sodium_init();
+
 		boost::optional<fs::path> cache;
 		if (cache_path)
 			cache = cache_path;

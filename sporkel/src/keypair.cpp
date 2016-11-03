@@ -11,6 +11,8 @@ struct sporkel_keypair {
 
 sporkel_keypair_t *sporkel_keypair_create(void)
 {
+	sodium_init();
+
 	std::unique_ptr<sporkel_keypair_t> pair;
 	try {
 		pair.reset(new sporkel_keypair_t());
