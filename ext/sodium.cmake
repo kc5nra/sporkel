@@ -58,36 +58,31 @@ set(sodium_SOURCES
 	# libsodium/src/libsodium/crypto_hash/sha256/cp/hash_sha256.c
 	libsodium/src/libsodium/crypto_hash/sha512/hash_sha512_api.c
 	libsodium/src/libsodium/crypto_hash/sha512/cp/hash_sha512.c
-	# libsodium/src/libsodium/crypto_onetimeauth/crypto_onetimeauth.c
-	# libsodium/src/libsodium/crypto_onetimeauth/poly1305/donna/auth_poly1305_donna.c
-	# libsodium/src/libsodium/crypto_onetimeauth/poly1305/donna/verify_poly1305_donna.c
-	# libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305.c
-	# libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305_api.c
-	# libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305_try.c
+	libsodium/src/libsodium/crypto_onetimeauth/crypto_onetimeauth.c
+	libsodium/src/libsodium/crypto_onetimeauth/poly1305/donna/poly1305_donna.c
+	libsodium/src/libsodium/crypto_onetimeauth/poly1305/sse2/poly1305_sse2.c
+	libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/argon2.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/argon2-core.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/argon2-encoding.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/argon2-fill-block-ref.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/argon2-fill-block-ssse3.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/blake2b-long.c
+	libsodium/src/libsodium/crypto_pwhash/argon2/pwhash_argon2i.c
+	libsodium/src/libsodium/crypto_pwhash/crypto_pwhash.c
 	# libsodium/src/libsodium/crypto_pwhash/scryptsalsa208sha256/crypto_scrypt-common.c
 	# libsodium/src/libsodium/crypto_pwhash/scryptsalsa208sha256/nosse/pwhash_scryptsalsa208sha256_nosse.c
 	# libsodium/src/libsodium/crypto_pwhash/scryptsalsa208sha256/pbkdf2-sha256.c
 	# libsodium/src/libsodium/crypto_pwhash/scryptsalsa208sha256/pwhash_scryptsalsa208sha256.c
 	# libsodium/src/libsodium/crypto_pwhash/scryptsalsa208sha256/scrypt_platform.c
 	# libsodium/src/libsodium/crypto_pwhash/scryptsalsa208sha256/sse/pwhash_scryptsalsa208sha256_sse.c
-	# libsodium/src/libsodium/crypto_scalarmult/crypto_scalarmult.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/donna_c64/base_curve25519_donna_c64.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/donna_c64/smult_curve25519_donna_c64.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/base_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_0_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_1_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_add_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_copy_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_cswap_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_frombytes_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_invert_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_mul121666_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_mul_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_sq_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_sub_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/fe_tobytes_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/scalarmult_curve25519_ref10.c
-	# libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519_api.c
+	libsodium/src/libsodium/crypto_scalarmult/crypto_scalarmult.c
+	libsodium/src/libsodium/crypto_scalarmult/curve25519/donna_c64/curve25519_donna_c64.c
+	libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.c
+	libsodium/src/libsodium/crypto_scalarmult/curve25519/sandy2x/curve25519_sandy2x.c
+	libsodium/src/libsodium/crypto_scalarmult/curve25519/sandy2x/fe_frombytes_sandy2x.c
+	libsodium/src/libsodium/crypto_scalarmult/curve25519/sandy2x/fe51_invert.c
+	libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve25519.c
 	# libsodium/src/libsodium/crypto_secretbox/crypto_secretbox.c
 	# libsodium/src/libsodium/crypto_secretbox/crypto_secretbox_easy.c
 	# libsodium/src/libsodium/crypto_secretbox/xsalsa20poly1305/ref/box_xsalsa20poly1305.c
@@ -109,9 +104,10 @@ set(sodium_SOURCES
 	# libsodium/src/libsodium/crypto_stream/aes128ctr/portable/stream_aes128ctr.c
 	# libsodium/src/libsodium/crypto_stream/aes128ctr/portable/xor_afternm_aes128ctr.c
 	# libsodium/src/libsodium/crypto_stream/aes128ctr/stream_aes128ctr_api.c
-	# libsodium/src/libsodium/crypto_stream/chacha20/ref/stream_chacha20_ref.c
-	# libsodium/src/libsodium/crypto_stream/chacha20/stream_chacha20_api.c
-	# libsodium/src/libsodium/crypto_stream/crypto_stream.c
+	libsodium/src/libsodium/crypto_stream/chacha20/ref/stream_chacha20_ref.c
+	libsodium/src/libsodium/crypto_stream/chacha20/vec/stream_chacha20_vec.c
+	libsodium/src/libsodium/crypto_stream/chacha20/stream_chacha20.c
+	libsodium/src/libsodium/crypto_stream/crypto_stream.c
 	# libsodium/src/libsodium/crypto_stream/salsa2012/ref/stream_salsa2012.c
 	# libsodium/src/libsodium/crypto_stream/salsa2012/ref/xor_salsa2012.c
 	# libsodium/src/libsodium/crypto_stream/salsa2012/stream_salsa2012_api.c
@@ -124,8 +120,8 @@ set(sodium_SOURCES
 	# libsodium/src/libsodium/crypto_stream/xsalsa20/ref/stream_xsalsa20.c
 	# libsodium/src/libsodium/crypto_stream/xsalsa20/ref/xor_xsalsa20.c
 	# libsodium/src/libsodium/crypto_stream/xsalsa20/stream_xsalsa20_api.c
-	# libsodium/src/libsodium/crypto_verify/16/ref/verify_16.c
-	# libsodium/src/libsodium/crypto_verify/16/verify_16_api.c
+	libsodium/src/libsodium/crypto_verify/16/ref/verify_16.c
+	libsodium/src/libsodium/crypto_verify/16/verify_16_api.c
 	libsodium/src/libsodium/crypto_verify/32/ref/verify_32.c
 	libsodium/src/libsodium/crypto_verify/32/verify_32_api.c
 	# libsodium/src/libsodium/crypto_verify/64/ref/verify_64.c
