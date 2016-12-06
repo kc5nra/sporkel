@@ -611,20 +611,24 @@ int apply(const path &before_path, const path &patch_path, bool keep_backup)
 	err.clear();
 	rename(tmp_path, before_path, err);
 
-	if (err.value() != boost::system::errc::success) {
-		std::cerr << "error: failed to move " << tmp_path << " to " << before_path << std::endl;
-		std::cout << "removing failed copy of " << before_path << std::endl;
-		remove_all(before_path);
-		std::cout << "restoring backup from " << backup_path << " to " << before_path << std::endl;
-		err.clear();
-		rename(backup_path, before_path, err);
-		if (err.value() != boost::system::errc::success) {
-			std::cerr << "error: failed to copy backup " << backup_path << " to " << before_path << std::endl;
-		}
-		return 2;
-	}
+	if (err.value() == boost::system::errc::success)
+		return 0;
 
-	return 0;
+	std::cerr << "error: failed to move " << tmp_path << " to " << before_path << "; trying to copy ..." << std::endl;
+	std::cout << "removing failed copy of " << before_path << std::endl;
+	remove_all(before_path, err);
+
+	if (sporkel_util::copy_directory_recursive(tmp_path, before_path))
+		return 0;
+
+	std::cerr << "error: failed to copy " << tmp_path << " to " << before_path << std::endl;
+	std::cout << "restoring backup from " << backup_path << " to " << before_path << std::endl;
+	err.clear();
+	rename(backup_path, before_path, err);
+	if (err.value() != boost::system::errc::success) {
+		std::cerr << "error: failed to copy backup " << backup_path << " to " << before_path << std::endl;
+	}
+	return 2;
 }
 
 int hash(const path &file_path)
