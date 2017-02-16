@@ -213,10 +213,14 @@ offtout(off_t x,u_char *buf)
   if(x<0) buf[7]|=0x80;
 }
 
+#ifndef max
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 off_t
 sporkel_bsdiff_patchsize_max(off_t newsize, off_t oldsize)
 {
-  return newsize+oldsize+BSDIFF_PATCH_SLOP_SIZE;
+  return 2*max(newsize, oldsize)+BSDIFF_PATCH_SLOP_SIZE;
 }
 
 int sporkel_bsdiff(u_char* oldp, off_t oldsize,
