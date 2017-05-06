@@ -2,7 +2,7 @@ sporkel [![Build Status](https://travis-ci.org/kc5nra/sporkel.svg?branch=travis-
 =======
 
 
-           _,,,,,,,_                                                    
+           _,,,,,,,_                                                     
         ,s*``        `*e,                                                
       yP                 "k                              ______,,_       
      `""*=ow..,            V===**********^^^^""""``````````       "%     
